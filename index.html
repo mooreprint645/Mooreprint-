@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <title>MoorePrint | Costos y pedidos</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">MP</div>
+        <div>
+          <strong>MoorePrint</strong>
+          <span>Control de imprenta</span>
+        </div>
+      </div>
+
+      <nav class="nav-list" aria-label="Navegación principal">
+        <button class="nav-item active" data-section="dashboard"><span>▦</span> Resumen</button>
+        <button class="nav-item" data-section="orders"><span>🧾</span> Pedidos</button>
+        <button class="nav-item" data-section="products"><span>🏷️</span> Productos y costos</button>
+        <button class="nav-item" data-section="expenses"><span>💸</span> Gastos</button>
+        <button class="nav-item" data-section="reports"><span>📊</span> Reportes</button>
+        <button class="nav-item" data-section="settings"><span>⚙️</span> Configuración</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <small>Los datos se guardan en este dispositivo.</small>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button class="icon-button mobile-only" id="menuButton" aria-label="Abrir menú">☰</button>
+        <div>
+          <h1 id="pageTitle">Resumen</h1>
+          <p id="todayLabel"></p>
+        </div>
+        <div class="topbar-actions">
+          <button class="button secondary" id="backupButton">Respaldar</button>
+          <button class="button primary" id="quickOrderButton">+ Nuevo pedido</button>
+        </div>
+      </header>
+
+      <section class="page-section active" id="dashboard">
+        <div class="metrics-grid">
+          <article class="metric-card accent-blue">
+            <span>Ventas</span>
+            <strong id="metricSales">$0.00</strong>
+            <small id="metricOrders">0 pedidos</small>
+          </article>
+          <article class="metric-card accent-purple">
+            <span>Costo de producción</span>
+            <strong id="metricProduction">$0.00</strong>
+            <small>Materiales, mano de obra y extras</small>
+          </article>
+          <article class="metric-card accent-orange">
+            <span>Gastos del negocio</span>
+            <strong id="metricExpenses">$0.00</strong>
+            <small>Pasajes, gas, renta y otros</small>
+          </article>
+          <article class="metric-card accent-green">
+            <span>Ganancia neta</span>
+            <strong id="metricProfit">$0.00</strong>
+            <small id="metricMargin">Margen 0%</small>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel chart-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Resultado del negocio</h2>
+                <p>Ventas contra costos y gastos del periodo.</p>
+              </div>
+              <select id="dashboardPeriod" class="compact-select">
+                <option value="month">Este mes</option>
+                <option value="all">Todo el historial</option>
+              </select>
+            </div>
+            <div class="bar-chart" id="summaryChart"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Dinero pendiente</h2>
+                <p>Lo que todavía deben los clientes.</p>
+              </div>
+            </div>
+            <div class="receivable-total" id="receivableTotal">$0.00</div>
+            <div class="mini-list" id="pendingPayments"></div>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Pedidos recientes</h2>
+              <p>Últimos trabajos registrados.</p>
+            </div>
+            <button class="text-button" data-go="orders">Ver todos</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Folio</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th>Total</th><th>Ganancia</th></tr>
+              </thead>
+              <tbody id="recentOrdersTable"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="page-section" id="orders">
+        <div class="section-toolbar">
+          <div class="search-box"><span>⌕</span><input id="orderSearch" type="search" placeholder="Buscar por cliente, folio o producto"></div>
+          <select id="orderStatusFilter">
+            <option value="all">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="en_proceso">En proceso</option>
+            <option value="listo">Listo</option>
+            <option value="entregado">Entregado</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+          <button class="button primary" id="newOrderButton">+ Nuevo pedido</button>
+        </div>
+        <article class="panel">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Folio</th><th>Cliente</th><th>Descripción</th><th>Entrega</th><th>Estado</th><th>Total</th><th>Pagado</th><th>Acciones</th></tr>
+              </thead>
+              <tbody id="ordersTable"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="ordersEmpty">
+            <div>🧾</div><h3>Aún no hay pedidos</h3><p>Registra el primer trabajo de la imprenta.</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="page-section" id="products">
+        <div class="section-toolbar">
+          <div class="search-box"><span>⌕</span><input id="productSearch" type="search" placeholder="Buscar producto o categoría"></div>
+          <button class="button secondary" id="loadExamplesButton">Cargar ejemplos</button>
+          <button class="button primary" id="newProductButton">+ Nuevo producto</button>
+        </div>
+        <div class="product-grid" id="productGrid"></div>
+        <div class="empty-state panel" id="productsEmpty">
+          <div>🏷️</div><h3>Agrega lo que produces</h3><p>Por ejemplo: taza sublimada, lona, playera, etiqueta o invitación.</p>
+        </div>
+      </section>
+
+      <section class="page-section" id="expenses">
+        <div class="section-toolbar">
+          <div class="search-box"><span>⌕</span><input id="expenseSearch" type="search" placeholder="Buscar gasto"></div>
+          <select id="expenseCategoryFilter">
+            <option value="all">Todas las categorías</option>
+            <option value="materiales">Materiales</option>
+            <option value="pasajes">Pasajes</option>
+            <option value="gasolina">Gasolina</option>
+            <option value="gas">Gas</option>
+            <option value="renta_local">Renta o local</option>
+            <option value="servicios">Servicios</option>
+            <option value="mantenimiento">Mantenimiento</option>
+            <option value="otros">Otros</option>
+          </select>
+          <button class="button primary" id="newExpenseButton">+ Nuevo gasto</button>
+        </div>
+        <article class="panel">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th><th>Acciones</th></tr></thead>
+              <tbody id="expensesTable"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="expensesEmpty">
+            <div>💸</div><h3>No hay gastos registrados</h3><p>Incluye pasajes, gasolina, gas, renta, servicios y compras del negocio.</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="page-section" id="reports">
+        <div class="report-controls panel">
+          <div><label>Desde</label><input type="date" id="reportFrom"></div>
+          <div><label>Hasta</label><input type="date" id="reportTo"></div>
+          <button class="button primary" id="applyReportButton">Actualizar reporte</button>
+          <button class="button secondary" id="exportCsvButton">Exportar CSV</button>
+        </div>
+        <div class="metrics-grid report-metrics">
+          <article class="metric-card"><span>Ventas</span><strong id="reportSales">$0.00</strong></article>
+          <article class="metric-card"><span>Costos de pedidos</span><strong id="reportCosts">$0.00</strong></article>
+          <article class="metric-card"><span>Gastos generales</span><strong id="reportExpenses">$0.00</strong></article>
+          <article class="metric-card"><span>Resultado neto</span><strong id="reportNet">$0.00</strong></article>
+        </div>
+        <div class="dashboard-grid">
+          <article class="panel">
+            <div class="panel-header"><div><h2>Gastos por categoría</h2><p>En el rango seleccionado.</p></div></div>
+            <div id="expenseCategoryReport" class="category-report"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-header"><div><h2>Productos más vendidos</h2><p>Ordenados por ingresos.</p></div></div>
+            <div id="topProductsReport" class="mini-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page-section" id="settings">
+        <div class="settings-grid">
+          <article class="panel">
+            <div class="panel-header"><div><h2>Datos del negocio</h2><p>Aparecen en las notas impresas.</p></div></div>
+            <form id="businessForm" class="form-grid">
+              <label class="full">Nombre del negocio<input name="name" placeholder="MoorePrint"></label>
+              <label>Teléfono<input name="phone" placeholder="722 000 0000"></label>
+              <label>Ciudad<input name="city" placeholder="Toluca, Estado de México"></label>
+              <label class="full">Mensaje para la nota<textarea name="note" rows="3" placeholder="Gracias por su compra"></textarea></label>
+              <button class="button primary" type="submit">Guardar datos</button>
+            </form>
+          </article>
+          <article class="panel">
+            <div class="panel-header"><div><h2>Respaldo de información</h2><p>Descarga o recupera todos tus datos.</p></div></div>
+            <div class="stack-actions">
+              <button class="button secondary" id="exportBackupButton">Descargar respaldo JSON</button>
+              <label class="button secondary file-button">Importar respaldo<input type="file" id="importBackupInput" accept="application/json"></label>
+              <button class="button danger" id="clearDataButton">Borrar todos los datos</button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop" hidden>
+    <div class="modal" id="modalContainer" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
