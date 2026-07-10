@@ -1,0 +1,47 @@
+name: Validar MoorePrint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Revisar sintaxis JavaScript
+        run: |
+          for file in *.js; do
+            echo "Revisando $file"
+            node --check "$file"
+          done
+
+      - name: Revisar archivos e identificadores de la interfaz
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map(match => match[1]);
+          const missingScripts = scripts.filter(file => !fs.existsSync(file));
+          if (missingScripts.length) throw new Error(`Scripts faltantes: ${missingScripts.join(', ')}`);
+
+          const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
+          const js = scripts.map(file => fs.readFileSync(file, 'utf8')).join('\n');
+          const referenced = new Set([
+            ...[...js.matchAll(/\$\('#([^']+)'\)/g)].map(match => match[1]),
+            ...[...js.matchAll(/\$\("#([^"]+)"\)/g)].map(match => match[1])
+          ]);
+          const missingIds = [...referenced].filter(id => !ids.has(id));
+          if (missingIds.length) throw new Error(`Identificadores faltantes en index.html: ${missingIds.join(', ')}`);
+
+          console.log(`Validación correcta: ${scripts.length} scripts y ${ids.size} identificadores.`);
+          NODE
