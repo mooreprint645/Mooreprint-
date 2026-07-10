@@ -1,3 +1,39 @@
+(function loadBrandTheme() {
+  if (document.querySelector('link[href="brand-theme.css"]')) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'brand-theme.css';
+  document.head.appendChild(link);
+})();
+
+function applyBrandIdentity() {
+  const brand = $('.brand');
+  if (!brand) return;
+  brand.innerHTML = `
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 100 100" role="img" aria-label="Panda MoorePrint">
+        <circle cx="25" cy="25" r="17" fill="#050505"/>
+        <circle cx="75" cy="25" r="17" fill="#050505"/>
+        <ellipse cx="50" cy="53" rx="40" ry="39" fill="#efefed"/>
+        <ellipse cx="34" cy="49" rx="12" ry="16" transform="rotate(28 34 49)" fill="#050505"/>
+        <ellipse cx="66" cy="49" rx="12" ry="16" transform="rotate(-28 66 49)" fill="#050505"/>
+        <circle cx="36" cy="48" r="4" fill="#efefed"/>
+        <circle cx="64" cy="48" r="4" fill="#efefed"/>
+        <circle cx="36" cy="48" r="2" fill="#050505"/>
+        <circle cx="64" cy="48" r="2" fill="#050505"/>
+        <ellipse cx="50" cy="65" rx="7" ry="5" fill="#050505"/>
+        <path d="M50 69 C48 77 38 78 34 72 M50 69 C52 77 62 78 66 72" fill="none" stroke="#050505" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M40 82 C46 86 54 86 60 82" fill="none" stroke="#050505" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="brand-copy">
+      <strong><span class="brand-moore">MOORE</span><span class="brand-print">PRINT</span></strong>
+      <span>IMPRESIÓN Y DISEÑO</span>
+    </div>`;
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.content = '#050505';
+}
+
 function setupEvents() {
   $$('.nav-item').forEach(button => button.addEventListener('click', () => navigate(button.dataset.section)));
   $$('[data-go]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.go)));
@@ -90,6 +126,7 @@ function setupEvents() {
 }
 
 function init() {
+  applyBrandIdentity();
   $('#todayLabel').textContent = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
   setupEvents(); generateRecurringExpenses(false); renderAll();
 }
