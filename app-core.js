@@ -11,7 +11,6 @@ const defaultState = {
   }
 };
 
-let state = loadState();
 let modalContext = null;
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -24,6 +23,8 @@ const clone = value => JSON.parse(JSON.stringify(value));
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 const monthKey = date => String(date || todayISO()).slice(0, 7);
 const sum = (items, getter) => items.reduce((total, item) => total + getter(item), 0);
+
+let state = loadState();
 
 function normalizeState(saved) {
   const result = { ...clone(defaultState), ...(saved || {}) };
