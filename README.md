@@ -1,30 +1,37 @@
-# MoorePrint — Control de costos y pedidos
+# MoorePrint — Administración integral para imprenta
 
-Aplicación web para administrar una imprenta desde computadora o teléfono.
+Aplicación web local para controlar costos, pedidos, inventario, clientes, proveedores, caja y resultados de una imprenta desde celular o computadora.
 
-## Funciones
+## Módulos incluidos
 
-- Catálogo de productos con precio de venta, materiales, mano de obra y otros costos.
-- Cálculo automático del costo unitario, ganancia y margen.
-- Pedidos con folio, cliente, teléfono, anticipo, fecha de entrega y estado.
-- Notas de pedido listas para imprimir.
-- Registro de gastos: materiales, pasajes, gasolina, gas, renta del local, servicios, mantenimiento y otros.
-- Resumen de ventas, costos de producción, gastos, ganancia o pérdida y cobros pendientes.
-- Reportes por rango de fechas y exportación a CSV.
-- Respaldo e importación de datos en formato JSON.
-- Diseño adaptable para celular, tableta y computadora.
+- **Resumen:** ventas, ganancia neta, saldo de caja, cuentas por cobrar, cuentas por pagar, inventario y alertas.
+- **Pedidos:** folio, cliente, responsable, prioridad, diseño, fechas, estados, costos internos, descuentos, IVA, entrega, pagos parciales y nota imprimible.
+- **Cotizaciones:** vigencia, estados, impresión y conversión directa en pedido.
+- **Clientes:** teléfono, correo, RFC, dirección, notas, historial de pedidos, ventas y saldos.
+- **Productos y costos:** recetas de materiales, mano de obra, diseño, electricidad o gas, empaque, transporte, trabajo externo, desperdicio, comisiones y margen.
+- **Inventario:** existencias, mínimos, costo unitario, valor, alertas y movimientos.
+- **Proveedores y compras:** contactos, materiales, facturas, costo promedio, pagos parciales y cuentas por pagar.
+- **Gastos:** pasajes, gasolina, gas, renta, servicios, sueldos, mantenimiento, publicidad, impuestos y otros.
+- **Gastos recurrentes:** generación mensual automática de renta, luz, internet, salarios y suscripciones.
+- **Caja y pagos:** cobros, pagos, retiros, aportaciones, métodos de pago, referencias y corte diario.
+- **Reportes:** ventas, costos, gastos, utilidad, flujo de caja, punto de equilibrio, tendencia mensual, productos rentables, mejores clientes e indicadores operativos.
+- **Archivos de pedidos:** diseños, imágenes, PDF y comprobantes guardados localmente en IndexedDB.
+- **Respaldo y exportación:** JSON para recuperar los datos y CSV para abrirlos en Excel.
 
-## Cómo usar
+## Inventario automático
 
-1. En **Productos y costos**, registra cada producto de la imprenta. También puedes usar el botón **Cargar ejemplos**.
-2. En **Pedidos**, crea una nota, selecciona productos y registra el anticipo.
-3. En **Gastos**, anota pagos como pasajes, gas, gasolina, renta, servicios o compras.
-4. Revisa la ganancia o pérdida en **Resumen** y **Reportes**.
-5. Descarga respaldos periódicamente en **Configuración**.
+Cada producto puede tener una receta con los materiales utilizados. Al cambiar un pedido a **En proceso**, **Listo** o **Entregado**, el sistema descuenta esos materiales. Si el pedido se modifica, cancela o elimina, las existencias se corrigen automáticamente.
 
-## Guardado de información
+Las compras aumentan las existencias y actualizan el costo promedio de cada material.
 
-Esta primera versión guarda los datos en el navegador mediante `localStorage`. Los datos permanecen en el dispositivo y navegador donde se capturaron. Para usarlos en otro dispositivo, descarga un respaldo JSON e impórtalo en el otro equipo.
+## Guardado local
+
+Esta versión no utiliza cuentas ni base de datos en línea. La información administrativa se guarda en `localStorage` y los archivos adjuntos en `IndexedDB`.
+
+- Los datos permanecen únicamente en el navegador y dispositivo donde fueron capturados.
+- Es recomendable descargar respaldos JSON con frecuencia.
+- El respaldo JSON incluye los registros administrativos, pero no los archivos adjuntos. Los archivos deben descargarse desde cada pedido.
+- Para trabajar en otro dispositivo, importa allí el respaldo JSON.
 
 ## Publicar con GitHub Pages
 
@@ -32,12 +39,21 @@ Esta primera versión guarda los datos en el navegador mediante `localStorage`. 
 2. Entra a **Settings → Pages**.
 3. En **Build and deployment**, selecciona **Deploy from a branch**.
 4. Elige la rama `main`, carpeta `/ (root)` y guarda.
-5. GitHub mostrará la dirección pública. Normalmente será:
+5. La dirección normalmente será:
 
 `https://mooreprint645.github.io/Mooreprint-/`
 
 ## Archivos principales
 
-- `index.html`: estructura de la aplicación.
-- `styles.css`: diseño y adaptación a celular.
-- `app.js`: pedidos, productos, gastos, cálculos, reportes y respaldos.
+- `index.html`: interfaz y módulos.
+- `styles.css`: diseño adaptable.
+- `files-db.js`: archivos adjuntos locales.
+- `app-core.js`: datos, cálculos, inventario y caja.
+- `app-render-main.js`: tablero, pedidos, clientes, productos e inventario.
+- `app-render-finance.js`: compras, gastos, caja y reportes.
+- `app-contacts.js`: clientes y proveedores.
+- `app-catalog.js`: materiales, inventario y recetas.
+- `app-documents.js`: pedidos y cotizaciones.
+- `app-finance.js`: compras, pagos, gastos y recurrentes.
+- `app-tools.js`: notas, exportaciones y respaldo.
+- `app.js`: eventos e inicio de la aplicación.
