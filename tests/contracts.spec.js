@@ -5,6 +5,7 @@ const sql = fs.readFileSync('supabase/team-improvements.sql', 'utf8');
 const app = fs.readFileSync('app.js', 'utf8');
 const serviceWorker = fs.readFileSync('sw.js', 'utf8');
 const improvements = fs.readFileSync('team-improvements.js', 'utf8');
+const stateBridge = fs.readFileSync('state-bridge.js', 'utf8');
 
 test('las políticas usan permisos diferentes para ver, crear, editar y eliminar', async () => {
   for (const permission of [
@@ -25,10 +26,13 @@ test('la paginación limita cada consulta a 50 registros', async () => {
   expect(improvements).toContain('p_offset: pages.quotes.page * PAGE_SIZE');
 });
 
-test('la aplicación y la caché cargan el módulo nuevo', async () => {
+test('la aplicación y la caché cargan los módulos nuevos', async () => {
+  expect(app).toContain("loadScriptOnce('state-bridge.js')");
   expect(app).toContain("loadScriptOnce('team-improvements.js')");
+  expect(serviceWorker).toContain("'./state-bridge.js'");
   expect(serviceWorker).toContain("'./team-improvements.js'");
-  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v21'");
+  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v22'");
+  expect(stateBridge).toContain("Object.defineProperty(window, 'state'");
 });
 
 test('el indicador contempla los cuatro estados operativos', async () => {
