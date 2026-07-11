@@ -9,6 +9,7 @@ const serviceWorker = fs.readFileSync('sw.js', 'utf8');
 const improvements = fs.readFileSync('team-improvements.js', 'utf8');
 const operations = fs.readFileSync('team-operations.js', 'utf8');
 const startupLimit = fs.readFileSync('startup-query-limit.js', 'utf8');
+const selectStability = fs.readFileSync('select-innerhtml-stability.js', 'utf8');
 const stateBridge = fs.readFileSync('state-bridge.js', 'utf8');
 const syncGuard = fs.readFileSync('granular-sync-guard.js', 'utf8');
 
@@ -77,11 +78,12 @@ test('pagos, cortes e inventario requieren confirmación especial', async () => 
 });
 
 test('la aplicación y la caché cargan todos los módulos nuevos', async () => {
-  for (const file of ['state-bridge.js', 'granular-sync-guard.js', 'team-improvements.js', 'startup-query-limit.js', 'team-operations.js']) {
+  for (const file of ['state-bridge.js', 'granular-sync-guard.js', 'team-improvements.js', 'startup-query-limit.js', 'select-innerhtml-stability.js', 'team-operations.js']) {
     expect(app).toContain(`loadScriptOnce('${file}')`);
     expect(serviceWorker).toContain(`'./${file}'`);
   }
-  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v24'");
+  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v25'");
+  expect(selectStability).toContain('HTMLSelectElement.prototype');
   expect(stateBridge).toContain("Object.defineProperty(window, 'state'");
 });
 
