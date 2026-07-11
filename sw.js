@@ -1,10 +1,10 @@
-const CACHE_NAME = 'mooreprint-v5';
+const CACHE_NAME = 'mooreprint-v6';
 const APP_SHELL = [
   './', './index.html', './styles.css', './brand-theme.css', './advanced-features.css',
   './files-db.js', './app-core.js', './app-render-main.js', './app-render-finance.js',
   './app-contacts.js', './app-catalog.js', './app-documents.js', './app-finance.js',
-  './app-tools.js', './advanced-features.js', './supabase-config.js', './supabase-cloud.js',
-  './app.js', './manifest.webmanifest', './icon.svg'
+  './app-tools.js', './advanced-fixes.js', './advanced-features.js', './supabase-config.js', './supabase-cloud.js',
+  './app.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'
 ];
 
 self.addEventListener('install', event => {
