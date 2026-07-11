@@ -27,12 +27,15 @@
   function normalizeAdvancedRuntime() {
     state.activityLog = Array.isArray(state.activityLog) ? state.activityLog : [];
     state.wasteRecords = Array.isArray(state.wasteRecords) ? state.wasteRecords : [];
+    state.supplierCatalog = Array.isArray(state.supplierCatalog) ? state.supplierCatalog : [];
+    state.supplierPriceHistory = Array.isArray(state.supplierPriceHistory) ? state.supplierPriceHistory : [];
     state.goals = { sales: 30000, profit: 12000, orders: 80, ...(state.goals || {}) };
     state.business = {
       whatsapp: '', bank: '', clabe: '', depositPercent: 50, quoteValidity: 15,
       policies: 'El trabajo comienza al recibir el anticipo y la aprobación del diseño.',
       ...(state.business || {})
     };
+    state.products = Array.isArray(state.products) ? state.products.map(product => ({ autoPrice:false,targetMarginPercent:40,priceRounding:1,...product })) : [];
     state.orders = Array.isArray(state.orders) ? state.orders.map(order => ({
       designRevisions: 0, approvedBy: '', approvedAt: '', approvalNote: '', designChanges: '', clientApproved: false,
       ...order
@@ -72,17 +75,20 @@
     if (document.querySelector(`script[src="${src}"]`)) return;
     const script = document.createElement('script');
     script.src = src;
-    script.defer = true;
+    script.async = false;
     document.head.appendChild(script);
   }
 
   function loadUsabilityLayer() {
     preventDuplicateOnboardingRenders();
     loadStyle('access-control.css');
+    loadStyle('supplier-catalog.css');
     loadStyle('usability.css');
     loadStyle('mobile-fixes.css');
+    loadScript('supplier-catalog.js');
     loadScript('usability.js');
     loadScript('mobile-fixes.js');
+    loadScript('catalog-cloud.js');
   }
 
   protectSupabaseConfig();
