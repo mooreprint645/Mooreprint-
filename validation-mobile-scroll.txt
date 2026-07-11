@@ -1,0 +1,1 @@
+Validación temporal del desplazamiento y cierre del menú móvil.
