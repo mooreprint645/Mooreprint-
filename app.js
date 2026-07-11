@@ -38,6 +38,8 @@ async function loadAdvancedFeatures() {
   if (window.MoorePrintAdvanced) await window.MoorePrintAdvanced.init();
   await loadScriptOnce('performance-fixes.js');
   window.MoorePrintPerformance?.init?.();
+  await loadScriptOnce('team-workflow.js');
+  window.MoorePrintTeamWorkflow?.init?.();
 }
 
 async function loadSupabaseCloud() {
@@ -120,8 +122,6 @@ function setupEvents() {
     if (target.dataset.confirmDelete) { performDelete(target.dataset.confirmDelete, target.dataset.id); return; }
 
     if (target.dataset.toggleRecurring) { const item = state.recurringExpenses.find(row => row.id === target.dataset.toggleRecurring); if (item) { item.active = item.active === false; saveState(item.active ? 'Gasto recurrente activado' : 'Gasto recurrente pausado'); } return; }
-    if (target.dataset.downloadFile) { try { await FileDB.downloadFile(target.dataset.downloadFile); } catch (error) { showToast(error.message, 'error'); } return; }
-    if (target.dataset.deleteFile) { await FileDB.removeFile(target.dataset.deleteFile); renderAttachmentList(target.dataset.orderId); showToast('Archivo eliminado'); return; }
 
     if (target.id === 'addDocumentLine') { $('#documentLines').insertAdjacentHTML('beforeend', documentLineRow({ qty: 1 })); updateDocumentPreview(); return; }
     if (target.id === 'addRecipeRow') { $('#recipeRows').insertAdjacentHTML('beforeend', recipeRow({ qty: 1 })); updateProductCostPreview(); return; }
@@ -136,7 +136,7 @@ function setupEvents() {
     if (target.classList.contains('tab-button')) { const modal = target.closest('.modal-body'); $$('.tab-button', modal).forEach(button => button.classList.toggle('active', button === target)); $$('.tab-pane', modal).forEach(pane => pane.classList.toggle('active', pane.id === target.dataset.tab)); }
   });
 
-  document.addEventListener('change', async event => {
+  document.addEventListener('change', event => {
     const element = event.target;
     if (element.id === 'orderCustomerSelect' || element.id === 'quoteCustomerSelect') {
       const form = element.form; const customer = state.customers.find(item => item.id === element.value); if (customer) { form.elements.customer.value = customer.name; form.elements.phone.value = customer.phone || ''; }
@@ -146,9 +146,6 @@ function setupEvents() {
     }
     if (element.classList.contains('purchase-material')) { const material = state.materials.find(item => item.id === element.value); if (material) $('.purchase-cost', element.closest('.line-row')).value = num(material.unitCost); updatePurchasePreview(); }
     if (element.classList.contains('recipe-material')) updateProductCostPreview();
-    if (element.id === 'orderAttachmentInput') {
-      if (!element.files.length) return; try { await FileDB.saveFiles(modalContext.id, element.files); await renderAttachmentList(modalContext.id); showToast(`${element.files.length} archivo${element.files.length === 1 ? '' : 's'} guardado${element.files.length === 1 ? '' : 's'}`); } catch (error) { showToast(error.message, 'error'); } element.value = '';
-    }
   });
 
   document.addEventListener('input', event => {
