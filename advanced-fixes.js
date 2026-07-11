@@ -35,20 +35,28 @@
     }
   }
 
+  function loadStyle(href) {
+    if (document.querySelector(`link[href="${href}"]`)) return;
+    const style = document.createElement('link');
+    style.rel = 'stylesheet';
+    style.href = href;
+    document.head.appendChild(style);
+  }
+
+  function loadScript(src) {
+    if (document.querySelector(`script[src="${src}"]`)) return;
+    const script = document.createElement('script');
+    script.src = src;
+    script.defer = true;
+    document.head.appendChild(script);
+  }
+
   function loadUsabilityLayer() {
     preventDuplicateOnboardingRenders();
-    if (!document.querySelector('link[href="usability.css"]')) {
-      const style = document.createElement('link');
-      style.rel = 'stylesheet';
-      style.href = 'usability.css';
-      document.head.appendChild(style);
-    }
-    if (!document.querySelector('script[src="usability.js"]')) {
-      const script = document.createElement('script');
-      script.src = 'usability.js';
-      script.defer = true;
-      document.head.appendChild(script);
-    }
+    loadStyle('usability.css');
+    loadStyle('mobile-fixes.css');
+    loadScript('usability.js');
+    loadScript('mobile-fixes.js');
   }
 
   normalizeAdvancedRuntime();
