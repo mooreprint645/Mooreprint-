@@ -59,7 +59,7 @@ jobs:
           const dynamicIds = new Set([...js.matchAll(/\bid=\\?"([^"$]+)\\?"/g)].map(match => match[1]));
           const referenced = new Set([
             ...[...js.matchAll(/\$\('#([^']+)'\)/g)].map(match => match[1]),
-            ...[...js.matchAll(/\$\("([^"]+)"\)/g)].map(match => match[1])
+            ...[...js.matchAll(/\$\("#([^"]+)"\)/g)].map(match => match[1])
           ]);
           const missingIds = [...referenced].filter(id => !staticIds.has(id) && !dynamicIds.has(id));
           if (missingIds.length) throw new Error(`Identificadores faltantes: ${missingIds.join(', ')}`);
