@@ -28,6 +28,12 @@
   }
 
   function injectControls() {
+    if (!document.querySelector('#uxMobileRuntimeStyle')) {
+      const style = document.createElement('style');
+      style.id = 'uxMobileRuntimeStyle';
+      style.textContent = 'html.ux-compact body.ux-sidebar-open{touch-action:auto!important}html.ux-compact .sidebar{touch-action:pan-y!important}';
+      document.head.appendChild(style);
+    }
     if (!document.querySelector('#uxSidebarBackdrop')) {
       document.body.insertAdjacentHTML('beforeend', '<div class="ux-sidebar-backdrop" id="uxSidebarBackdrop" aria-hidden="true"></div>');
     }
