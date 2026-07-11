@@ -1,4 +1,29 @@
 (function () {
+  function protectSupabaseConfig() {
+    const fallback = {
+      url: 'https://uqikxpgvqnyylvsotecy.supabase.co',
+      publishableKey: 'sb_publishable_t6go8xYeYuc-3SI-iEBeZg_CLIR65WD'
+    };
+    let current = { ...fallback, ...(window.MOOREPRINT_SUPABASE || {}) };
+    try {
+      Object.defineProperty(window, 'MOOREPRINT_SUPABASE', {
+        configurable: true,
+        enumerable: true,
+        get() { return current; },
+        set(value) {
+          const incoming = value && typeof value === 'object' ? value : {};
+          current = {
+            url: incoming.url || current.url || fallback.url,
+            publishableKey: incoming.publishableKey || current.publishableKey || fallback.publishableKey
+          };
+        }
+      });
+      window.MOOREPRINT_SUPABASE = fallback;
+    } catch (error) {
+      window.MOOREPRINT_SUPABASE = fallback;
+    }
+  }
+
   function normalizeAdvancedRuntime() {
     state.activityLog = Array.isArray(state.activityLog) ? state.activityLog : [];
     state.wasteRecords = Array.isArray(state.wasteRecords) ? state.wasteRecords : [];
@@ -60,6 +85,7 @@
     loadScript('mobile-fixes.js');
   }
 
+  protectSupabaseConfig();
   normalizeAdvancedRuntime();
   const previousRenderAll = renderAll;
   renderAll = function () {
