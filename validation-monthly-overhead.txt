@@ -1,0 +1,1 @@
+Validación temporal de luz, renta, personal, horas productivas y cálculo automático de precios.
