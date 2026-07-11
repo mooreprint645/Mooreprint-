@@ -1,0 +1,1 @@
+Validación temporal de sucursales, empleados, permisos, pedidos compartidos, aislamiento local y ventas por sucursal.
