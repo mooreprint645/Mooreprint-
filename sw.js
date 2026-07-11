@@ -1,6 +1,6 @@
-const CACHE_NAME = 'mooreprint-v8';
+const CACHE_NAME = 'mooreprint-v9';
 const APP_SHELL = [
-  './', './index.html', './styles.css', './brand-theme.css', './advanced-features.css', './usability.css', './mobile-fixes.css',
+  './', './index.html', './styles.css', './brand-theme.css', './advanced-features.css', './access-control.css', './usability.css', './mobile-fixes.css',
   './files-db.js', './app-core.js', './app-render-main.js', './app-render-finance.js',
   './app-contacts.js', './app-catalog.js', './app-documents.js', './app-finance.js',
   './app-tools.js', './advanced-fixes.js', './advanced-features.js', './usability.js', './mobile-fixes.js', './supabase-config.js', './supabase-cloud.js',
