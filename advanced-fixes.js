@@ -14,6 +14,21 @@
     })) : [];
   }
 
+  function loadUsabilityLayer() {
+    if (!document.querySelector('link[href="usability.css"]')) {
+      const style = document.createElement('link');
+      style.rel = 'stylesheet';
+      style.href = 'usability.css';
+      document.head.appendChild(style);
+    }
+    if (!document.querySelector('script[src="usability.js"]')) {
+      const script = document.createElement('script');
+      script.src = 'usability.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+  }
+
   normalizeAdvancedRuntime();
   const previousRenderAll = renderAll;
   renderAll = function () {
@@ -21,5 +36,6 @@
     return previousRenderAll();
   };
 
+  loadUsabilityLayer();
   window.MoorePrintNormalizeAdvanced = normalizeAdvancedRuntime;
 })();
