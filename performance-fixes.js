@@ -1,147 +1,72 @@
 (function () {
   let initialized = false;
-  let renderMonitor = null;
 
-  function restoreEfficientInnerHTML() {
-    if (window.__mooreprintEfficientInnerHTML) return;
-    try {
-      const frame = document.createElement('iframe');
-      frame.hidden = true;
-      frame.setAttribute('aria-hidden', 'true');
-      document.documentElement.appendChild(frame);
-      const cleanDescriptor = Object.getOwnPropertyDescriptor(frame.contentWindow.Element.prototype, 'innerHTML');
-      frame.remove();
-      if (!cleanDescriptor?.get || !cleanDescriptor?.set) return;
-
-      const guardedIds = new Set([
-        'uxOnboarding',
-        'branchTopbar',
-        'branchOrdersContext',
-        'branchAdminPanel',
-        'branchCards',
-        'memberCards'
-      ]);
-
-      Object.defineProperty(Element.prototype, 'innerHTML', {
-        configurable: true,
-        enumerable: cleanDescriptor.enumerable,
-        get: cleanDescriptor.get,
-        set(value) {
-          const next = String(value ?? '');
-          if (guardedIds.has(this.id) && cleanDescriptor.get.call(this) === next) return;
-          cleanDescriptor.set.call(this, value);
-        }
-      });
-      window.__mooreprintEfficientInnerHTML = true;
-    } catch (error) {
-      console.warn('No fue posible restaurar el renderizado eficiente.', error);
-    }
-  }
-
-  function installFutureObserverScheduler() {
-    if (window.__mooreprintObserverScheduler || !window.MutationObserver) return;
-    const NativeMutationObserver = window.MutationObserver;
-
-    class ScheduledMutationObserver extends NativeMutationObserver {
-      constructor(callback) {
-        let pending = false;
-        let records = [];
-        let observerReference = null;
-        super((nextRecords, observer) => {
-          records.push(...nextRecords);
-          observerReference = observer;
-          if (pending) return;
-          pending = true;
-          requestAnimationFrame(() => {
-            pending = false;
-            const batch = records;
-            records = [];
-            callback(batch, observerReference);
-          });
-        });
-      }
-    }
-
-    window.MutationObserver = ScheduledMutationObserver;
-    window.__mooreprintObserverScheduler = true;
-  }
-
-  function wrapRenderAll() {
-    const current = window.renderAll;
-    if (typeof current !== 'function' || current.__mooreprintPerformanceWrapped) return;
-
-    let rendering = false;
-    let queued = false;
-    let lastRenderAt = 0;
-
-    function optimizedRenderAll(...args) {
-      if (document.visibilityState === 'hidden') {
-        queued = true;
-        return;
-      }
-
-      if (rendering) {
-        queued = true;
-        return;
-      }
-
-      const elapsed = performance.now() - lastRenderAt;
-      if (elapsed < 34) {
-        if (!queued) {
-          queued = true;
-          requestAnimationFrame(() => {
-            queued = false;
-            optimizedRenderAll(...args);
-          });
-        }
-        return;
-      }
-
-      rendering = true;
-      document.documentElement.classList.add('mp-rendering');
-      try {
-        return current.apply(this, args);
-      } finally {
-        rendering = false;
-        lastRenderAt = performance.now();
-        requestAnimationFrame(() => document.documentElement.classList.remove('mp-rendering'));
-        if (queued) {
-          queued = false;
-          requestAnimationFrame(() => optimizedRenderAll());
-        }
-      }
-    }
-
-    optimizedRenderAll.__mooreprintPerformanceWrapped = true;
-    optimizedRenderAll.__mooreprintBaseRender = current;
-    window.renderAll = optimizedRenderAll;
-    try { renderAll = optimizedRenderAll; } catch (error) {}
-  }
-
-  function installVisibilityRecovery() {
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState !== 'visible') return;
-      requestAnimationFrame(() => {
-        wrapRenderAll();
-        if (typeof window.renderAll === 'function') window.renderAll();
-      });
-    });
-  }
-
-  function installContainmentStyles() {
+  function installLightweightStyles() {
     if (document.querySelector('#mooreprintPerformanceStyles')) return;
     const style = document.createElement('style');
     style.id = 'mooreprintPerformanceStyles';
     style.textContent = `
-      .page-section:not(.active) { display: none !important; }
-      .table-wrap, .production-board, .calendar-shell, .branch-admin-grid {
-        contain: layout style paint;
+      .page-section:not(.active) {
+        display: none !important;
       }
-      html.mp-rendering .page-section.active,
-      html.mp-rendering #branchTopbar,
-      html.mp-rendering #branchAdminPanel {
-        transition: none !important;
+
+      .table-wrap,
+      .production-board,
+      .calendar-shell,
+      .branch-admin-grid {
+        contain: layout style;
       }
+
+      html.mp-employee-mode #settings .settings-grid > .panel {
+        display: none !important;
+      }
+
+      html.mp-employee-mode #settings #supabasePanel {
+        display: block !important;
+        max-width: 560px;
+        margin-inline: auto;
+        text-align: center;
+      }
+
+      html.mp-employee-mode #supabasePanel > :not(#supabaseSession) {
+        display: none !important;
+      }
+
+      html.mp-employee-mode.mooreprint-access-granted #supabaseSession {
+        display: block !important;
+      }
+
+      html.mp-employee-mode #supabaseSession .info-box,
+      html.mp-employee-mode #syncSupabaseNow,
+      html.mp-employee-mode #cloudCatalogStatus,
+      html.mp-employee-mode #monthlyCostCloudStatus,
+      html.mp-employee-mode #branchSyncStatus {
+        display: none !important;
+      }
+
+      html.mp-employee-mode #supabaseSession .stack-actions {
+        display: flex;
+        justify-content: center;
+      }
+
+      html.mp-employee-mode #supabaseSignOut {
+        display: inline-flex !important;
+        width: min(100%, 320px);
+        min-height: 52px;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      html.mp-employee-mode #supabasePanel::before {
+        content: "Cerrar sesión";
+        display: block;
+        margin-bottom: 18px;
+        font-size: 24px;
+        font-weight: 900;
+      }
+
       @media (prefers-reduced-motion: reduce) {
         *, *::before, *::after {
           scroll-behavior: auto !important;
@@ -154,28 +79,65 @@
     document.head.appendChild(style);
   }
 
-  function monitorLateWrappers() {
-    clearInterval(renderMonitor);
-    let checks = 0;
-    renderMonitor = setInterval(() => {
-      checks += 1;
-      wrapRenderAll();
-      if (checks >= 20) clearInterval(renderMonitor);
-    }, 500);
+  function applyEmployeeMode() {
+    const access = window.MoorePrintBranches;
+    const profile = access?.getProfile?.();
+    if (!profile) return false;
+
+    const employee = !access.isAdmin?.();
+    document.documentElement.classList.toggle('mp-employee-mode', employee);
+
+    if (employee) {
+      const settingsButton = document.querySelector('.nav-item[data-section="settings"]');
+      if (settingsButton) settingsButton.innerHTML = '<span>🚪</span> Cerrar sesión';
+
+      const accountButton = document.querySelector('#cloudAccountButton');
+      if (accountButton) accountButton.textContent = 'Cerrar sesión';
+
+      if (document.querySelector('#settings')?.classList.contains('active')) {
+        const title = document.querySelector('#pageTitle');
+        if (title) title.textContent = 'Cerrar sesión';
+      }
+    }
+
+    return true;
+  }
+
+  function waitForProfile() {
+    let attempts = 0;
+    const check = () => {
+      attempts += 1;
+      if (applyEmployeeMode() || attempts >= 100) return;
+      setTimeout(check, 200);
+    };
+    check();
+  }
+
+  function bindEmployeeUiRefresh() {
+    document.addEventListener('click', event => {
+      const settings = event.target.closest('.nav-item[data-section="settings"], #cloudAccountButton');
+      if (!settings) return;
+      requestAnimationFrame(applyEmployeeMode);
+    });
+
+    window.addEventListener('focus', applyEmployeeMode, { passive: true });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') applyEmployeeMode();
+    });
   }
 
   function init() {
     if (initialized) return;
     initialized = true;
-    restoreEfficientInnerHTML();
-    installFutureObserverScheduler();
-    installContainmentStyles();
-    installVisibilityRecovery();
-    wrapRenderAll();
-    monitorLateWrappers();
+    installLightweightStyles();
+    bindEmployeeUiRefresh();
+    waitForProfile();
   }
 
-  window.MoorePrintPerformance = { init, wrapRenderAll };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
-  else init();
+  window.MoorePrintPerformance = { init, applyEmployeeMode };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
 })();
