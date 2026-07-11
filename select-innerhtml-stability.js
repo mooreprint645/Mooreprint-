@@ -24,21 +24,39 @@
     }
   }
 
-  function loadOperationsGuard(attempt = 0) {
-    if (window.MoorePrintOperationsUiGuard) return;
-    if (!window.MoorePrintOperations && attempt < 200) {
-      setTimeout(() => loadOperationsGuard(attempt + 1), 100);
-      return;
-    }
-    if (!window.MoorePrintOperations || document.querySelector('script[data-team-operations-ui-guard]')) return;
-
+  function loadScriptOnce(file, datasetKey, errorMessage) {
+    if (document.querySelector(`script[${datasetKey}]`)) return;
     const script = document.createElement('script');
-    script.src = new URL('team-operations-ui-guard.js', currentSource).href;
+    script.src = new URL(file, currentSource).href;
     script.defer = true;
-    script.dataset.teamOperationsUiGuard = 'true';
-    script.onerror = () => console.warn('No se pudo cargar la guardia visual de operaciones.');
+    script.setAttribute(datasetKey, 'true');
+    script.onerror = () => console.warn(errorMessage);
     document.head.appendChild(script);
   }
 
-  setTimeout(() => loadOperationsGuard(), 0);
+  function loadOperationsExtensions(attempt = 0) {
+    if (!window.MoorePrintOperations && attempt < 200) {
+      setTimeout(() => loadOperationsExtensions(attempt + 1), 100);
+      return;
+    }
+    if (!window.MoorePrintOperations) return;
+
+    if (!window.MoorePrintOperationsUiGuard) {
+      loadScriptOnce(
+        'team-operations-ui-guard.js',
+        'data-team-operations-ui-guard',
+        'No se pudo cargar la guardia visual de operaciones.'
+      );
+    }
+
+    if (!window.MoorePrintHardening) {
+      loadScriptOnce(
+        'team-hardening.js',
+        'data-team-hardening',
+        'No se pudo cargar la protección avanzada.'
+      );
+    }
+  }
+
+  setTimeout(() => loadOperationsExtensions(), 0);
 })();
