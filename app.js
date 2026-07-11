@@ -36,6 +36,8 @@ async function loadAdvancedFeatures() {
   await loadScriptOnce('advanced-fixes.js');
   await loadScriptOnce('advanced-features.js');
   if (window.MoorePrintAdvanced) await window.MoorePrintAdvanced.init();
+  await loadScriptOnce('performance-fixes.js');
+  window.MoorePrintPerformance?.init?.();
 }
 
 async function loadSupabaseCloud() {
