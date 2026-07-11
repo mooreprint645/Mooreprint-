@@ -70,6 +70,50 @@
     }
   }
 
+  function protectCloudSettingsForEmployees() {
+    if (window.__mooreprintCloudSettingsProtection) return;
+    window.__mooreprintCloudSettingsProtection = true;
+
+    function isRestrictedEmployee() {
+      const access = window.MoorePrintBranches;
+      const profile = access?.getProfile?.();
+      return Boolean(profile && !access?.isAdmin?.());
+    }
+
+    function applyProtection() {
+      const access = window.MoorePrintBranches;
+      const profile = access?.getProfile?.();
+      if (!profile) return;
+
+      const admin = Boolean(access?.isAdmin?.());
+      const configForm = document.querySelector('#supabaseConfigForm');
+      if (configForm) {
+        configForm.hidden = !admin;
+        configForm.setAttribute('aria-hidden', String(!admin));
+      }
+
+      const panelDescription = document.querySelector('#supabasePanel .panel-header p');
+      if (panelDescription && !admin) {
+        panelDescription.textContent = 'Tu sesión está conectada de forma segura. Solo el propietario puede cambiar la conexión.';
+      }
+    }
+
+    document.addEventListener('click', event => {
+      const restrictedControl = event.target.closest('#clearSupabaseConfig, #supabaseConfigForm button[type="submit"]');
+      if (!restrictedControl || !isRestrictedEmployee()) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (typeof showToast === 'function') {
+        showToast('Solo el propietario o un administrador puede cambiar la conexión.', 'error');
+      }
+    }, true);
+
+    const observer = new MutationObserver(applyProtection);
+    observer.observe(document.body, { childList: true, subtree: true });
+    setInterval(applyProtection, 1200);
+    applyProtection();
+  }
+
   function currentMonthKey() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -159,6 +203,7 @@
 
   protectSupabaseConfig();
   installSupabaseAuthStabilityPatch();
+  protectCloudSettingsForEmployees();
   normalizeAdvancedRuntime();
   const previousRenderAll = renderAll;
   renderAll = function () {
