@@ -53,6 +53,7 @@
 
   function loadUsabilityLayer() {
     preventDuplicateOnboardingRenders();
+    loadStyle('access-control.css');
     loadStyle('usability.css');
     loadStyle('mobile-fixes.css');
     loadScript('usability.js');
