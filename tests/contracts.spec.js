@@ -3,9 +3,12 @@ const fs = require('fs');
 
 const sql = fs.readFileSync('supabase/team-improvements.sql', 'utf8');
 const syncSql = fs.readFileSync('supabase/team-improvements-sync.sql', 'utf8');
+const operationsSql = fs.readFileSync('supabase/team-operations.sql', 'utf8');
 const app = fs.readFileSync('app.js', 'utf8');
 const serviceWorker = fs.readFileSync('sw.js', 'utf8');
 const improvements = fs.readFileSync('team-improvements.js', 'utf8');
+const operations = fs.readFileSync('team-operations.js', 'utf8');
+const startupLimit = fs.readFileSync('startup-query-limit.js', 'utf8');
 const stateBridge = fs.readFileSync('state-bridge.js', 'utf8');
 const syncGuard = fs.readFileSync('granular-sync-guard.js', 'utf8');
 
@@ -19,13 +22,15 @@ test('las políticas usan permisos diferentes para ver, crear, editar y eliminar
   }
 });
 
-test('la paginación limita cada consulta a 50 registros', async () => {
+test('clientes, cotizaciones y pedidos se consultan por páginas', async () => {
   expect(sql).toContain('create or replace function public.page_team_customers');
   expect(sql).toContain('create or replace function public.page_team_quotes');
-  expect(sql).toContain('safe_limit integer := least');
+  expect(operationsSql).toContain('create or replace function public.page_team_orders');
   expect(improvements).toContain('const PAGE_SIZE = 50');
-  expect(improvements).toContain('p_offset: pages.customers.page * PAGE_SIZE');
-  expect(improvements).toContain('p_offset: pages.quotes.page * PAGE_SIZE');
+  expect(operations).toContain('const PAGE_SIZE = 50');
+  expect(operations).toContain('p_offset: orderPage.page * PAGE_SIZE');
+  expect(startupLimit).toContain("'branch_orders'");
+  expect(startupLimit).toContain("'branch_order_financials'");
 });
 
 test('la sincronización distingue filas nuevas y existentes antes de autorizar', async () => {
@@ -39,14 +44,44 @@ test('la sincronización distingue filas nuevas y existentes antes de autorizar'
   expect(syncGuard).toContain("client.rpc('sync_team_quotes'");
 });
 
-test('la aplicación y la caché cargan los módulos nuevos', async () => {
-  expect(app).toContain("loadScriptOnce('state-bridge.js')");
-  expect(app).toContain("loadScriptOnce('granular-sync-guard.js')");
-  expect(app).toContain("loadScriptOnce('team-improvements.js')");
-  expect(serviceWorker).toContain("'./state-bridge.js'");
-  expect(serviceWorker).toContain("'./granular-sync-guard.js'");
-  expect(serviceWorker).toContain("'./team-improvements.js'");
-  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v23'");
+test('inventario, compras, proveedores, gastos y caja usan registros compartidos', async () => {
+  expect(operationsSql).toContain('create table if not exists public.team_records');
+  for (const type of ['supplier', 'material', 'purchase', 'expense', 'recurring_expense', 'cash_transaction', 'inventory_movement']) {
+    expect(operationsSql).toContain(`'${type}'`);
+    expect(operations).toContain(`'${type}'`);
+  }
+  expect(operationsSql).toContain('create or replace function public.sync_team_records');
+  expect(operationsSql).toContain('create or replace function public.list_team_records');
+});
+
+test('la edición simultánea, historial y errores tienen controles de servidor', async () => {
+  expect(operationsSql).toContain('create table if not exists public.team_edit_locks');
+  expect(operationsSql).toContain('create or replace function public.acquire_team_edit_lock');
+  expect(operationsSql).toContain('create or replace function public.heartbeat_team_edit_lock');
+  expect(operationsSql).toContain('create or replace function public.release_team_edit_lock');
+  expect(operationsSql).toContain('create or replace function public.page_team_activity');
+  expect(operationsSql).toContain('create table if not exists public.team_errors');
+  expect(operationsSql).toContain('create or replace function public.record_team_error');
+  expect(operationsSql).toContain("current_app_role() <> 'owner'");
+  expect(operations).toContain('Editar de todos modos');
+  expect(operations).toContain('Exportar CSV');
+  expect(operations).toContain('Errores internos');
+});
+
+test('pagos, cortes e inventario requieren confirmación especial', async () => {
+  expect(operations).toContain('Confirmar pago');
+  expect(operations).toContain('Confirmar ajuste de inventario');
+  expect(operations).toContain('Confirmar movimiento de caja');
+  expect(operations).toContain('Confirmar corte de caja');
+  expect(operations).toContain('confirmInventoryImpact');
+});
+
+test('la aplicación y la caché cargan todos los módulos nuevos', async () => {
+  for (const file of ['state-bridge.js', 'granular-sync-guard.js', 'team-improvements.js', 'startup-query-limit.js', 'team-operations.js']) {
+    expect(app).toContain(`loadScriptOnce('${file}')`);
+    expect(serviceWorker).toContain(`'./${file}'`);
+  }
+  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v24'");
   expect(stateBridge).toContain("Object.defineProperty(window, 'state'");
 });
 
