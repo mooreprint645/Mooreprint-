@@ -1,13 +1,15 @@
 {
   "name": "mooreprint-control",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "scripts": {
     "test:e2e": "playwright test",
     "test:contracts": "playwright test tests/contracts.spec.js",
+    "test:live": "playwright test tests/supabase-live.spec.js",
     "test": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "1.52.0"
+    "@playwright/test": "1.52.0",
+    "@supabase/supabase-js": "2.52.0"
   }
 }
