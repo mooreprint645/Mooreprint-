@@ -86,9 +86,11 @@ test('la aplicación y la caché cargan todos los módulos nuevos', async () => 
     expect(serviceWorker).toContain(`'./${file}'`);
   }
   expect(selectStability).toContain('team-operations-ui-guard.js');
+  expect(selectStability).toContain('team-hardening.js');
   expect(serviceWorker).toContain("'./team-operations-ui-guard.js'");
-  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v26'");
-  expect(selectStability).toContain('HTMLSelectElement.prototype');
+  expect(serviceWorker).toContain("'./team-hardening.js'");
+  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v27'");
+  expect(selectStability).toContain('HTMLSelectElement');
   expect(stateBridge).toContain("Object.defineProperty(window, 'state'");
 });
 
