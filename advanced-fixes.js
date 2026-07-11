@@ -24,6 +24,52 @@
     }
   }
 
+  function installSupabaseAuthStabilityPatch() {
+    if (window.__mooreprintSupabaseAuthPatchInstalled) return;
+
+    function patchLibrary(library) {
+      if (!library || typeof library.createClient !== 'function' || library.__mooreprintAuthPatched) return library;
+      const originalCreateClient = library.createClient.bind(library);
+      library.createClient = function (...args) {
+        const supabaseClient = originalCreateClient(...args);
+        const auth = supabaseClient?.auth;
+        if (auth && typeof auth.onAuthStateChange === 'function' && !auth.__mooreprintAuthPatched) {
+          const originalOnAuthStateChange = auth.onAuthStateChange.bind(auth);
+          auth.onAuthStateChange = function (callback) {
+            return originalOnAuthStateChange((event, session) => {
+              if (event === 'INITIAL_SESSION' && !session) return;
+              callback(event, session);
+            });
+          };
+          Object.defineProperty(auth, '__mooreprintAuthPatched', { value: true });
+        }
+        return supabaseClient;
+      };
+      Object.defineProperty(library, '__mooreprintAuthPatched', { value: true });
+      return library;
+    }
+
+    let currentLibrary = window.supabase;
+    try {
+      Object.defineProperty(window, 'supabase', {
+        configurable: true,
+        enumerable: true,
+        get() { return currentLibrary; },
+        set(value) { currentLibrary = patchLibrary(value); }
+      });
+      if (currentLibrary) currentLibrary = patchLibrary(currentLibrary);
+      window.__mooreprintSupabaseAuthPatchInstalled = true;
+    } catch (error) {
+      const timer = setInterval(() => {
+        if (!window.supabase?.createClient) return;
+        patchLibrary(window.supabase);
+        clearInterval(timer);
+      }, 25);
+      setTimeout(() => clearInterval(timer), 10000);
+      window.__mooreprintSupabaseAuthPatchInstalled = true;
+    }
+  }
+
   function currentMonthKey() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -112,6 +158,7 @@
   }
 
   protectSupabaseConfig();
+  installSupabaseAuthStabilityPatch();
   normalizeAdvancedRuntime();
   const previousRenderAll = renderAll;
   renderAll = function () {
