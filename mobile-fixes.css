@@ -1,0 +1,177 @@
+/* Correcciones móviles detectadas en Android */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{min-width:0;overflow-x:hidden}
+.ux-sidebar-backdrop{display:none;position:fixed;inset:0;z-index:295;background:rgba(0,0,0,.68);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.ux-sidebar-close{display:none;position:absolute;top:17px;right:14px;width:38px;height:38px;border:1px solid #333;border-radius:11px;background:#171717;color:#fff;font-size:23px;line-height:1;z-index:5}
+
+/* Se activa por JavaScript incluso cuando Android usa “Sitio para computadora”. */
+html.ux-compact body{padding-bottom:calc(72px + env(safe-area-inset-bottom));overflow-x:hidden}
+html.ux-compact body.ux-sidebar-open{overflow:hidden;touch-action:none}
+html.ux-compact body.ux-sidebar-open .ux-sidebar-backdrop{display:block}
+html.ux-compact .app-shell{display:block;min-width:0}
+html.ux-compact .main-content{margin-left:0;width:100%;min-width:0;padding:12px 12px calc(90px + env(safe-area-inset-bottom))}
+
+/* Menú como cajón, siempre por encima del encabezado y la barra inferior. */
+html.ux-compact .sidebar{
+  display:flex!important;
+  position:fixed!important;
+  inset:0 auto 0 0!important;
+  width:min(86vw,350px)!important;
+  max-width:350px;
+  height:100dvh;
+  padding:14px 12px calc(88px + env(safe-area-inset-bottom))!important;
+  transform:translate3d(-105%,0,0)!important;
+  transition:transform .24s ease!important;
+  z-index:330!important;
+  box-shadow:20px 0 55px rgba(0,0,0,.58)!important;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+html.ux-compact .sidebar.open{transform:translate3d(0,0,0)!important}
+html.ux-compact .sidebar .brand{position:sticky;top:-14px;z-index:4;min-height:76px;padding:12px 50px 15px 5px!important;background:#000!important;border-bottom:1px solid #202020}
+html.ux-compact .sidebar .brand-mark{width:48px;height:48px;flex-basis:48px}
+html.ux-compact .sidebar .brand-copy strong{font-size:23px}
+html.ux-compact .sidebar .brand-copy>span{font-size:8px;letter-spacing:.12em}
+html.ux-compact .ux-sidebar-close{display:grid;place-items:center}
+html.ux-compact .nav-group{margin:5px 0 12px}
+html.ux-compact .nav-group-title{min-height:30px;padding:7px 8px;font-size:9px}
+html.ux-compact .nav-item{min-height:46px;padding:10px 11px!important;border-radius:12px;font-size:14px!important;line-height:1.2;gap:10px}
+html.ux-compact .nav-item span:first-child{width:25px;font-size:16px}
+html.ux-compact .sidebar-footer{padding:12px 5px 20px;margin-top:10px}
+html.ux-compact .sidebar-tip{font-size:10px}
+
+/* Encabezado compacto: evita el bloque enorme de la captura. */
+html.ux-compact .topbar{
+  position:sticky;
+  top:0;
+  z-index:80;
+  display:grid!important;
+  grid-template-columns:44px minmax(0,1fr) auto;
+  align-items:center!important;
+  gap:10px;
+  min-height:66px;
+  margin:0 0 13px!important;
+  padding:7px 0 10px!important;
+  background:rgba(5,5,5,.94)!important;
+}
+html.ux-compact .mobile-only{display:grid!important;place-items:center}
+html.ux-compact #menuButton{width:44px;height:44px;border-radius:13px;font-size:21px;grid-column:1}
+html.ux-compact .topbar-copy{grid-column:2;min-width:0}
+html.ux-compact .topbar-copy h1{font-size:clamp(20px,5.8vw,26px)!important;line-height:1!important;letter-spacing:.015em!important;margin:0!important;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html.ux-compact .topbar-copy h1::after{width:42px;height:4px;margin-top:7px}
+html.ux-compact .topbar-copy>p{display:none!important}
+html.ux-compact .page-context{display:-webkit-box!important;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:5px;font-size:10px!important;line-height:1.3;max-width:34ch}
+html.ux-compact .topbar-actions{grid-column:3;display:flex;gap:5px;flex-wrap:nowrap!important}
+html.ux-compact .topbar-actions>*{display:none!important}
+html.ux-compact .topbar-actions #quickOrderButton{display:inline-flex!important;align-items:center;justify-content:center;min-height:44px;padding:0 13px!important;border-radius:13px;font-size:12px!important;white-space:nowrap}
+
+/* Contenido fácil de leer, sin versión de escritorio encogida. */
+html.ux-compact .metrics-grid,
+html.ux-compact .metrics-grid.six,
+html.ux-compact .metrics-grid.three,
+html.ux-compact .metrics-grid.four{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px}
+html.ux-compact .metric-card{min-height:108px;padding:14px;border-radius:15px}
+html.ux-compact .metric-card span{font-size:10px;margin-bottom:7px}
+html.ux-compact .metric-card strong{font-size:clamp(18px,5vw,23px)}
+html.ux-compact .dashboard-grid,
+html.ux-compact .dashboard-grid.equal,
+html.ux-compact .settings-grid,
+html.ux-compact .calculator-layout{grid-template-columns:1fr!important;gap:12px}
+html.ux-compact .panel{padding:14px;border-radius:15px;margin-bottom:13px}
+html.ux-compact .panel-header{align-items:flex-start;gap:10px;margin-bottom:13px}
+html.ux-compact .panel-header h2{font-size:16px}
+html.ux-compact .panel-header p{font-size:11px;line-height:1.35}
+html.ux-compact .ux-dashboard-grid{grid-template-columns:1fr!important;gap:12px;margin:12px 0}
+html.ux-compact .ux-quick-panel,
+html.ux-compact .ux-onboarding{padding:14px;border-radius:15px}
+html.ux-compact .ux-panel-heading h2{font-size:17px}
+html.ux-compact .ux-quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px}
+html.ux-compact .ux-quick-action{min-height:94px;padding:11px;gap:8px}
+html.ux-compact .ux-quick-action strong{display:block;font-size:11px;line-height:1.25}
+html.ux-compact .ux-quick-action small{display:block;font-size:9px;margin-top:3px}
+html.ux-compact .ux-check-item{font-size:10px;line-height:1.3}
+html.ux-compact .bar-chart{min-height:190px;overflow-x:auto;justify-content:flex-start}
+html.ux-compact .bar-item{min-width:72px}
+
+/* Barras de herramientas y tablas adaptadas. */
+html.ux-compact .section-toolbar{position:static!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:9px;margin-bottom:12px}
+html.ux-compact .section-toolbar .search-box{grid-column:1/-1;width:100%;min-width:0}
+html.ux-compact .section-toolbar select{width:100%;min-width:0}
+html.ux-compact .section-toolbar .button.primary{grid-column:1/-1;width:100%;min-height:44px}
+html.ux-compact .cards-grid,
+html.ux-compact .product-grid{grid-template-columns:1fr!important}
+html.ux-compact .table-wrap{overflow:visible}
+html.ux-compact .table-wrap table{min-width:0;width:100%}
+html.ux-compact .table-wrap thead{display:none}
+html.ux-compact .table-wrap tbody{display:grid;gap:10px}
+html.ux-compact .table-wrap tr{display:block;padding:12px;border:1px solid #2b2b2b;border-radius:13px;background:#101010}
+html.ux-compact .table-wrap td{display:grid;grid-template-columns:minmax(88px,37%) minmax(0,1fr);gap:8px;align-items:start;padding:7px 1px;border-bottom:1px solid #242424;text-align:right;word-break:break-word}
+html.ux-compact .table-wrap td:last-child{border-bottom:0}
+html.ux-compact .table-wrap td::before{content:attr(data-label);color:#f5c010;font-size:9px;font-weight:900;text-transform:uppercase;text-align:left}
+html.ux-compact .table-wrap td .action-group{justify-content:flex-end;flex-wrap:wrap}
+
+/* Barra inferior y hoja de acciones. */
+html.ux-compact .ux-fab{display:none!important}
+html.ux-compact .ux-mobile-nav{
+  position:fixed;
+  left:0;right:0;bottom:0;
+  z-index:300;
+  display:grid!important;
+  grid-template-columns:repeat(5,1fr);
+  height:calc(68px + env(safe-area-inset-bottom));
+  padding:5px 7px env(safe-area-inset-bottom);
+  background:rgba(5,5,5,.97);
+  border-top:1px solid #2c2c2c;
+  box-shadow:0 -10px 30px rgba(0,0,0,.35);
+  backdrop-filter:blur(16px)
+}
+html.ux-compact .ux-mobile-nav button{border:0;background:transparent;color:#8e8e89;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9px!important;font-weight:800;min-width:0}
+html.ux-compact .ux-mobile-nav button span{font-size:19px}
+html.ux-compact .ux-mobile-nav button.active{color:#f5c010}
+html.ux-compact .ux-mobile-nav .ux-mobile-add{align-self:start;width:54px;height:54px;margin:-17px auto 0;border-radius:50%;background:#f5c010;color:#050505;box-shadow:0 7px 25px rgba(245,192,16,.3)}
+html.ux-compact .ux-mobile-nav .ux-mobile-add span{font-size:25px}
+html.ux-compact .ux-quick-sheet{left:10px;right:10px;bottom:calc(76px + env(safe-area-inset-bottom));width:auto;max-height:62vh;overflow:auto;z-index:380;border-radius:18px}
+html.ux-compact .ux-overlay{z-index:410;padding:4vh 10px 82px}
+html.ux-compact .ux-command{max-height:84vh;border-radius:16px}
+
+/* Modales utilizables con teclado y barra inferior. */
+html.ux-compact .modal-backdrop{padding:6px;z-index:400}
+html.ux-compact .modal{width:100%;max-width:none;max-height:calc(100dvh - 12px);border-radius:16px}
+html.ux-compact .modal-body{padding:13px}
+html.ux-compact .modal-footer{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+html.ux-compact .form-grid,
+html.ux-compact .modal-form{grid-template-columns:1fr!important}
+html.ux-compact .line-row,
+html.ux-compact .line-row.recipe,
+html.ux-compact .line-row.payment,
+html.ux-compact .line-row.purchase{grid-template-columns:1fr 1fr!important}
+html.ux-compact .line-row>:first-child{grid-column:1/-1}
+
+/* En teléfonos estrechos, todavía más sencillo. */
+@media(max-width:480px){
+  html.ux-compact .main-content{padding-left:10px;padding-right:10px}
+  html.ux-compact .topbar{grid-template-columns:42px minmax(0,1fr) 44px;gap:8px}
+  html.ux-compact #menuButton{width:42px;height:42px}
+  html.ux-compact .topbar-actions #quickOrderButton{width:44px;min-width:44px;padding:0!important;font-size:0!important}
+  html.ux-compact .topbar-actions #quickOrderButton::before{content:'+';font-size:24px;font-weight:900}
+  html.ux-compact .page-context{max-width:25ch}
+  html.ux-compact .metrics-grid,
+  html.ux-compact .metrics-grid.six,
+  html.ux-compact .metrics-grid.three,
+  html.ux-compact .metrics-grid.four{grid-template-columns:1fr 1fr!important}
+  html.ux-compact .ux-quick-grid{grid-template-columns:1fr 1fr!important}
+  html.ux-compact .sidebar{width:min(90vw,340px)!important}
+}
+
+@media(max-width:350px){
+  html.ux-compact .metrics-grid,
+  html.ux-compact .metrics-grid.six,
+  html.ux-compact .metrics-grid.three,
+  html.ux-compact .metrics-grid.four,
+  html.ux-compact .ux-quick-grid{grid-template-columns:1fr!important}
+}
+
+@media print{
+  .ux-sidebar-backdrop,.ux-sidebar-close,.ux-mobile-nav,.ux-quick-sheet{display:none!important}
+  html.ux-compact body{padding-bottom:0}
+}
