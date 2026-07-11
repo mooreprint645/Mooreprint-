@@ -40,10 +40,10 @@ async function installOperationsFixture(page) {
     };
     window.openOrderModal = id => {
       const order = window.state.orders.find(row => row.id === id) || { id: id || 'new-order', customerId: '', customer: '', phone: '', status: 'pendiente' };
-      window.openModal('Pedido', `<form id="orderForm"><input name="id" value="${order.id}"><select id="orderCustomerSelect" name="customerId"><option value="">Sin cliente</option></select><input name="customer" value="${order.customer || ''}"><input name="phone" value="${order.phone || ''}"><select name="status"><option value="pendiente" selected>Pendiente</option><option value="en_proceso">En proceso</option></select><div class="summary-box"></div></form>`, '<button form="orderForm">Guardar</button>');
+      window.openModal('Pedido', `<form id="orderForm"><input name="id" value="${order.id}"><label>Cliente<select id="orderCustomerSelect" name="customerId"><option value="">Sin cliente</option></select></label><input name="customer" value="${order.customer || ''}"><input name="phone" value="${order.phone || ''}"><select name="status"><option value="pendiente" selected>Pendiente</option><option value="en_proceso">En proceso</option></select><div class="summary-box"></div></form>`, '<button form="orderForm">Guardar</button>');
     };
     window.openQuoteModal = () => {
-      window.openModal('Cotización', '<form id="quoteForm"><select id="quoteCustomerSelect" name="customerId"><option value="">Sin cliente</option></select><input name="customer"><input name="phone"><div class="summary-box"></div></form>', '<button form="quoteForm">Guardar</button>');
+      window.openModal('Cotización', '<form id="quoteForm"><label>Cliente<select id="quoteCustomerSelect" name="customerId"><option value="">Sin cliente</option></select></label><input name="customer"><input name="phone"><div class="summary-box"></div></form>', '<button form="quoteForm">Guardar</button>');
     };
     window.saveOrder = () => true;
     window.savePayment = () => { window.__paymentSaved += 1; return true; };
@@ -116,6 +116,7 @@ async function installOperationsFixture(page) {
 
   await page.addScriptTag({ path: path.join(process.cwd(), 'select-innerhtml-stability.js') });
   await page.addScriptTag({ path: path.join(process.cwd(), 'team-operations.js') });
+  await page.addScriptTag({ path: path.join(process.cwd(), 'team-operations-ui-guard.js') });
   await expect.poll(() => page.evaluate(() => window.MoorePrintOperations?.isReady())).toBe(true);
   await expect.poll(() => page.evaluate(() => window.MoorePrintOperations?.getOrderPage().ready)).toBe(true);
 }
