@@ -6,6 +6,14 @@
   document.head.appendChild(link);
 })();
 
+function loadStyleOnce(href) {
+  if (document.querySelector(`link[href="${href}"]`)) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  document.head.appendChild(link);
+}
+
 function loadScriptOnce(src) {
   return new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[src="${src}"]`);
@@ -21,6 +29,12 @@ function loadScriptOnce(src) {
     script.onerror = () => reject(new Error(`No se pudo cargar ${src}`));
     document.head.appendChild(script);
   });
+}
+
+async function loadAdvancedFeatures() {
+  loadStyleOnce('advanced-features.css');
+  await loadScriptOnce('advanced-features.js');
+  if (window.MoorePrintAdvanced) await window.MoorePrintAdvanced.init();
 }
 
 async function loadSupabaseCloud() {
@@ -152,7 +166,11 @@ function setupEvents() {
 async function init() {
   applyBrandIdentity();
   $('#todayLabel').textContent = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
+  try { await loadAdvancedFeatures(); }
+  catch (error) { console.warn('No se pudieron cargar algunas funciones avanzadas.', error); }
   setupEvents(); generateRecurringExpenses(false); renderAll();
+  const requestedSection = location.hash.replace('#','');
+  if (requestedSection && document.getElementById(requestedSection)) navigate(requestedSection);
   try { await loadSupabaseCloud(); }
   catch (error) { console.warn('Supabase no está disponible; MoorePrint continúa en modo local.', error); }
 }
