@@ -2,6 +2,7 @@
   let client = null;
   let currentUser = null;
   let syncTimer = null;
+  let saveHooked = false;
 
   const config = () => window.MOOREPRINT_SUPABASE || {};
   const isConfigured = () => Boolean(config().url && config().publishableKey && window.supabase?.createClient);
@@ -68,8 +69,20 @@
     else setStatus('Conectado y listo para sincronizar.', 'ok');
   }
 
+  function hookLocalSaves() {
+    if (saveHooked || typeof saveState !== 'function') return;
+    const localSaveState = saveState;
+    saveState = function (...args) {
+      const result = localSaveState(...args);
+      if (currentUser) scheduleSync(state);
+      return result;
+    };
+    saveHooked = true;
+  }
+
   async function init() {
     injectCloudPanels();
+    hookLocalSaves();
     if (!isConfigured()) { updateSessionUI(); bindEvents(); return false; }
     client = window.supabase.createClient(config().url, config().publishableKey);
     const { data } = await client.auth.getSession();
@@ -77,11 +90,11 @@
     client.auth.onAuthStateChange((_event, session) => {
       currentUser = session?.user || null;
       updateSessionUI();
-      if (currentUser && window.state) scheduleSync(window.state, 250);
+      if (currentUser) scheduleSync(state, 250);
     });
     bindEvents();
     updateSessionUI();
-    if (currentUser && window.state) scheduleSync(window.state, 250);
+    if (currentUser) scheduleSync(state, 250);
     return true;
   }
 
@@ -99,7 +112,7 @@
         currentUser = data.user;
         loginForm.reset();
         updateSessionUI();
-        await syncSales(window.state || state);
+        await syncSales(state);
       });
     }
 
@@ -112,7 +125,7 @@
     const syncButton = document.querySelector('#syncSupabaseNow');
     if (syncButton && !syncButton.dataset.bound) {
       syncButton.dataset.bound = 'true';
-      syncButton.addEventListener('click', () => syncSales(window.state || state));
+      syncButton.addEventListener('click', () => syncSales(state));
     }
 
     const refreshButton = document.querySelector('#refreshCloudSales');
@@ -151,7 +164,17 @@
     if (!client || !currentUser) { setStatus('Inicia sesión para sincronizar.', 'error'); return false; }
     const rows = saleRows(appState);
     setStatus('Sincronizando ventas...');
-    if (!rows.length) { setStatus('No hay ventas para sincronizar.', 'ok'); return true; }
+
+    const { data: remoteRows, error: readError } = await client.from('sales').select('order_id');
+    if (readError) { setStatus(`Error: ${readError.message}`, 'error'); return false; }
+    const localIds = new Set(rows.map(row => row.order_id));
+    const staleIds = (remoteRows || []).map(row => row.order_id).filter(id => !localIds.has(id));
+    if (staleIds.length) {
+      const { error: deleteError } = await client.from('sales').delete().in('order_id', staleIds);
+      if (deleteError) { setStatus(`Error: ${deleteError.message}`, 'error'); return false; }
+    }
+
+    if (!rows.length) { setStatus('La nube quedó sin ventas registradas.', 'ok'); await refreshSummary(); return true; }
     const { error } = await client.from('sales').upsert(rows, { onConflict: 'user_id,order_id' });
     if (error) { setStatus(`Error: ${error.message}`, 'error'); return false; }
     setStatus(`${rows.length} venta${rows.length === 1 ? '' : 's'} sincronizada${rows.length === 1 ? '' : 's'}.`, 'ok');
