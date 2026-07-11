@@ -6,7 +6,10 @@ module.exports = defineConfig({
   expect: { timeout: 5000 },
   fullyParallel: false,
   retries: 1,
-  reporter: [['list']],
+  reporter: [
+    ['list'],
+    ['json', { outputFile: 'test-results/results.json' }]
+  ],
   use: {
     browserName: 'chromium',
     headless: true,
