@@ -1,0 +1,1 @@
+Validación temporal del catálogo de proveedores, precios automáticos y sincronización con Supabase.
