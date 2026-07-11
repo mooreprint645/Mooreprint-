@@ -9,6 +9,11 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
+      SUPABASE_TEST_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
+      SUPABASE_TEST_EMAIL: ${{ secrets.SUPABASE_TEST_EMAIL }}
+      SUPABASE_TEST_PASSWORD: ${{ secrets.SUPABASE_TEST_PASSWORD }}
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
@@ -38,11 +43,11 @@ jobs:
           const missingScripts = scripts.filter(file => !fs.existsSync(file));
           if (missingScripts.length) throw new Error(`Scripts faltantes: ${missingScripts.join(', ')}`);
 
-          const dynamicLoaders = ['app.js', 'advanced-fixes.js', 'performance-fixes.js']
+          const dynamicLoaders = ['app.js', 'advanced-fixes.js', 'performance-fixes.js', 'select-innerhtml-stability.js']
             .filter(file => fs.existsSync(file))
             .map(file => fs.readFileSync(file, 'utf8'))
             .join('\n');
-          const dynamicallyLoaded = [...dynamicLoaders.matchAll(/(?:loadScriptOnce|loadScript)\(['"]([^'"]+)['"]\)/g)]
+          const dynamicallyLoaded = [...dynamicLoaders.matchAll(/(?:loadScriptOnce|loadScript)\(['"]([^'"]+)['"]/g)]
             .map(match => match[1])
             .filter(file => !file.startsWith('http'));
           const missingDynamic = dynamicallyLoaded.filter(file => !fs.existsSync(file));
@@ -54,7 +59,7 @@ jobs:
           const dynamicIds = new Set([...js.matchAll(/\bid=\\?"([^"$]+)\\?"/g)].map(match => match[1]));
           const referenced = new Set([
             ...[...js.matchAll(/\$\('#([^']+)'\)/g)].map(match => match[1]),
-            ...[...js.matchAll(/\$\("#([^"]+)"\)/g)].map(match => match[1])
+            ...[...js.matchAll(/\$\("([^"]+)"\)/g)].map(match => match[1])
           ]);
           const missingIds = [...referenced].filter(id => !staticIds.has(id) && !dynamicIds.has(id));
           if (missingIds.length) throw new Error(`Identificadores faltantes: ${missingIds.join(', ')}`);
@@ -62,12 +67,12 @@ jobs:
           console.log(`Validación correcta: ${allScripts.length} scripts, ${staticIds.size} identificadores estáticos y ${dynamicIds.size} dinámicos.`);
           NODE
 
-      - name: Instalar Playwright
+      - name: Instalar Playwright y Supabase
         run: |
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Probar permisos, paginación y conexión
+      - name: Probar permisos, transacciones, cola y conexión
         run: npm test
 
       - name: Guardar resultados de pruebas
