@@ -1,0 +1,35 @@
+{
+  "name": "MoorePrint — Control de imprenta",
+  "short_name": "MoorePrint",
+  "description": "Pedidos, costos, inventario, ventas, producción y reportes de MoorePrint.",
+  "lang": "es-MX",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "categories": ["business", "productivity", "finance"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nuevo pedido",
+      "short_name": "Pedido",
+      "url": "./#orders",
+      "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml"}]
+    },
+    {
+      "name": "Producción",
+      "short_name": "Producción",
+      "url": "./#production",
+      "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml"}]
+    }
+  ]
+}
