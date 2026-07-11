@@ -104,7 +104,10 @@
     const script = document.createElement('script');
     script.src = 'team-workflow.js';
     script.defer = true;
-    script.onload = () => window.MoorePrintTeamWorkflow?.init?.();
+    script.onload = () => {
+      script.dataset.loaded = 'true';
+      window.MoorePrintTeamWorkflow?.init?.();
+    };
     document.head.appendChild(script);
   }
 
