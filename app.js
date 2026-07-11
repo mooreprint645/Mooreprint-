@@ -41,6 +41,8 @@ async function loadAdvancedFeatures() {
   await loadScriptOnce('team-workflow.js');
   window.MoorePrintTeamWorkflow?.init?.();
   await loadScriptOnce('state-bridge.js');
+  await loadScriptOnce('granular-sync-guard.js');
+  window.MoorePrintGranularSync?.install?.();
   await loadScriptOnce('team-improvements.js');
   window.MoorePrintTeamImprovements?.init?.();
 }
