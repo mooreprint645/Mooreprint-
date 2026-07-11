@@ -114,6 +114,7 @@ async function installOperationsFixture(page) {
     window.MoorePrintTeamImprovements = { setStatus: () => {} };
   });
 
+  await page.addScriptTag({ path: path.join(process.cwd(), 'select-innerhtml-stability.js') });
   await page.addScriptTag({ path: path.join(process.cwd(), 'team-operations.js') });
   await expect.poll(() => page.evaluate(() => window.MoorePrintOperations?.isReady())).toBe(true);
   await expect.poll(() => page.evaluate(() => window.MoorePrintOperations?.getOrderPage().ready)).toBe(true);
