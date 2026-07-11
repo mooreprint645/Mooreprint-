@@ -19,13 +19,26 @@ La interfaz está organizada para que las tareas frecuentes sean fáciles de enc
 - Estados vacíos con una acción directa para crear el primer registro.
 - Indicador de conexión local o nube.
 
+## Catálogo de proveedores y costos automáticos
+
+- Cada proveedor puede tener una lista estructurada de productos y materiales.
+- Cada artículo guarda presentación, cantidad por paquete, precio, envío, otros cargos y costo final por unidad.
+- Un artículo puede crear automáticamente un material de inventario o vincularse con uno existente.
+- Es posible marcar un proveedor como costo principal para un material.
+- El comparador muestra qué proveedor ofrece el costo unitario más bajo.
+- Se conserva historial de cambios de precio.
+- Los productos de MoorePrint pueden usar precio manual o precio automático.
+- El precio automático toma materiales, mano de obra, diseño, energía, empaque, transporte, desperdicio y comisión.
+- Al cambiar el costo de un material se recalculan los productos que tengan precio automático.
+- Al seleccionar un producto en un pedido se colocan automáticamente precio, costo interno y receta de materiales.
+
 ## Funciones principales
 
 - **Resumen:** ventas, ganancia neta, caja, cuentas por cobrar, cuentas por pagar, inventario, metas y alertas.
 - **Pedidos:** folio, cliente, responsable, prioridad, diseño, fechas, estados, costos internos, descuentos, IVA, pagos parciales y nota imprimible.
 - **Cotizaciones:** vigencia, estados, impresión y conversión directa en pedido.
-- **Clientes y proveedores:** contactos, historial de operaciones, ventas, compras y saldos.
-- **Productos y costos:** materiales, mano de obra, diseño, energía, empaque, transporte, desperdicio, comisiones y margen.
+- **Clientes y proveedores:** contactos, catálogo de precios, historial de operaciones, ventas, compras y saldos.
+- **Productos y costos:** materiales, mano de obra, diseño, energía, empaque, transporte, desperdicio, comisiones, margen y precio automático.
 - **Inventario y compras:** existencias, mínimos, costo promedio, entradas, salidas, consumo por pedidos y cuentas por pagar.
 - **Gastos y caja:** gastos normales, recurrentes, cobros, pagos, retiros, aportaciones y corte diario.
 - **Reportes:** ventas, costos, utilidad, flujo de caja, punto de equilibrio, tendencias, productos rentables y mejores clientes.
@@ -49,29 +62,27 @@ La interfaz está organizada para que las tareas frecuentes sean fáciles de enc
 
 La integración permite:
 
-- Configurar la URL del proyecto y la clave pública desde la propia página.
-- Crear cuenta con correo y contraseña.
-- Iniciar y cerrar sesión.
+- Bloquear la página hasta validar una sesión autorizada.
+- Iniciar y cerrar sesión con usuarios creados desde Supabase.
 - Recuperar contraseña por correo.
-- Bloquear la interfaz cuando Supabase está configurado y no existe una sesión.
-- Sincronizar automáticamente las ventas.
-- Eliminar en la nube los pedidos que ya no existen localmente.
+- Sincronizar automáticamente ventas.
+- Sincronizar proveedores, precios, materiales, inventario y productos.
 - Consultar ventas por día, semana, mes y año.
 
 ### Activación
 
 1. Crea un proyecto en Supabase.
 2. Abre **SQL Editor** y ejecuta completo `supabase/schema.sql`.
-3. En MoorePrint entra a **Configuración → Supabase y acceso**.
-4. Pega la URL del proyecto y la clave pública o `publishable key`.
-5. Guarda la conexión y crea tu cuenta o inicia sesión.
-6. En **Reportes → Ventas guardadas en Supabase**, elige Día, Semana, Mes o Año.
+3. Crea y autoriza el usuario administrador.
+4. Ejecuta completo `supabase/catalog.sql` para activar proveedores, materiales, productos y precios.
+5. Configura la URL y la `publishable key` en `supabase-config.js`.
+6. Inicia sesión con el correo autorizado.
 
 Nunca uses la clave `service_role` dentro de la página.
 
 ## Guardado local y nube
 
-La aplicación sigue guardando todos los datos administrativos localmente. Cuando Supabase está conectado, las ventas también se sincronizan en la tabla `sales`.
+La aplicación guarda datos localmente para poder seguir funcionando sin conexión. Con Supabase conectado se sincronizan ventas, proveedores, catálogo de precios, materiales, existencias y productos.
 
 Los diseños, imágenes, PDF y comprobantes adjuntos permanecen en `IndexedDB` del navegador y todavía no se envían a Supabase.
 
@@ -90,16 +101,19 @@ Antes de cambiarlo, confirma que el servicio de publicación admita repositorios
 ## Archivos principales
 
 - `index.html`: estructura principal.
-- `styles.css`, `brand-theme.css`, `advanced-features.css` y `usability.css`: diseño e identidad visual.
+- `styles.css`, `brand-theme.css`, `advanced-features.css`, `supplier-catalog.css` y `usability.css`: diseño e identidad visual.
 - `manifest.webmanifest`, `sw.js`, `icon-192.png` e `icon-512.png`: aplicación PWA.
+- `supplier-catalog.js`: catálogo, comparación, historial de precios y precios automáticos.
+- `catalog-cloud.js`: sincronización de proveedores, materiales, productos e inventario.
 - `usability.js`: navegación guiada, búsqueda, formularios por pasos, accesos rápidos y experiencia móvil.
 - `advanced-features.js`: producción, calendario, calculadora, QR, metas, alertas, historial y mermas.
-- `advanced-fixes.js`: compatibilidad, normalización y carga de la capa intuitiva.
+- `advanced-fixes.js`: compatibilidad, normalización y carga de módulos.
 - `files-db.js`: archivos adjuntos locales.
 - `app-core.js`: datos, cálculos, inventario y caja.
 - `app-render-main.js` y `app-render-finance.js`: vistas y reportes.
 - `app-contacts.js`, `app-catalog.js`, `app-documents.js`, `app-finance.js` y `app-tools.js`: módulos administrativos.
-- `supabase/schema.sql`: tabla, políticas RLS y función de reportes.
-- `supabase-config.js`: configuración opcional incluida en código.
-- `supabase-cloud.js`: configuración desde la interfaz, autenticación y sincronización.
+- `supabase/schema.sql`: acceso privado, ventas, políticas RLS y reportes.
+- `supabase/catalog.sql`: tablas y políticas del catálogo administrativo.
+- `supabase-config.js`: URL y clave pública del proyecto.
+- `supabase-cloud.js`: autenticación y sincronización de ventas.
 - `app.js`: arranque de todos los módulos.
