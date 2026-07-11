@@ -6,6 +6,7 @@
   let checkingAccess = false;
   let syncTimer = null;
   let saveHooked = false;
+  let initialized = false;
 
   function storedConfig() {
     try { return JSON.parse(localStorage.getItem(CONFIG_KEY)) || {}; }
@@ -38,7 +39,7 @@
             <small>La URL y la clave pública pueden estar en el navegador. Nunca uses la clave service_role.</small>
           </form>
           <div id="supabaseSession" hidden>
-            <div class="info-box"><strong id="supabaseUserEmail"></strong><p>Correo autorizado. Las ventas se sincronizan automáticamente.</p></div>
+            <div class="info-box"><strong id="supabaseUserEmail"></strong><p>Correo autorizado. Pedidos y ventas se sincronizan según la sucursal.</p></div>
             <div class="stack-actions"><button class="button primary" id="syncSupabaseNow" type="button">Sincronizar ahora</button><button class="button secondary" id="supabaseSignOut" type="button">Cerrar sesión</button></div>
           </div>
           <p id="supabaseStatus" style="margin-top:12px"></p>
@@ -49,7 +50,7 @@
     if (reports && !document.querySelector('#cloudSalesReport')) {
       reports.insertAdjacentHTML('beforeend', `
         <article class="panel" id="cloudSalesReport">
-          <div class="panel-header"><div><h2>Ventas guardadas en Supabase</h2><p>Agrupadas por día, semana, mes o año.</p></div></div>
+          <div class="panel-header"><div><h2>Ventas guardadas en Supabase</h2><p>Respeta la sucursal y los permisos del usuario.</p></div></div>
           <div class="report-controls" style="margin-bottom:16px"><div><label>Periodo</label><select id="cloudSalesPeriod"><option value="day">Día</option><option value="week">Semana</option><option value="month" selected>Mes</option><option value="year">Año</option></select></div><button class="button primary" id="refreshCloudSales" type="button">Consultar nube</button></div>
           <div class="table-wrap"><table><thead><tr><th>Periodo</th><th>Pedidos</th><th>Ventas</th><th>Costos</th><th>Ganancia</th><th>Pagado</th><th>Saldo</th></tr></thead><tbody id="cloudSalesTable"><tr><td colspan="7">Inicia sesión para consultar Supabase.</td></tr></tbody></table></div>
         </article>`);
@@ -60,19 +61,17 @@
         <div class="auth-gate" id="supabaseAuthGate">
           <div class="auth-card">
             <div class="auth-brand"><strong>MOORE<b>PRINT</b></strong><p>Acceso privado</p></div>
-            <div class="auth-state auth-loading" id="supabaseGateChecking">
-              <div class="auth-spinner"></div><strong>Verificando sesión segura…</strong>
-            </div>
+            <div class="auth-state auth-loading" id="supabaseGateChecking"><div class="auth-spinner"></div><strong>Verificando sesión segura…</strong></div>
             <div class="auth-state" id="supabaseGateMissing" hidden>
               <h2>Falta conectar Supabase</h2>
-              <div class="auth-config-warning">La aplicación está bloqueada. Coloca la URL y la clave pública en <strong>supabase-config.js</strong> para activar el inicio de sesión.</div>
-              <p>Después ejecuta <strong>supabase/schema.sql</strong> y autoriza tu correo.</p>
+              <div class="auth-config-warning">La aplicación está bloqueada. Coloca la URL y la clave pública en <strong>supabase-config.js</strong>.</div>
+              <p>Después ejecuta los archivos SQL de la carpeta <strong>supabase</strong>.</p>
             </div>
             <div class="auth-state" id="supabaseGateLogin" hidden>
               <h2>Iniciar sesión</h2>
-              <p>Entra con un correo previamente creado y autorizado en Supabase.</p>
+              <p>Entra con un correo previamente creado y autorizado.</p>
               ${authForm('supabaseGateLoginForm')}
-              <div class="auth-security-note"><span>🔒</span><span>No existe registro público. Las cuentas se crean únicamente desde el panel de Supabase.</span></div>
+              <div class="auth-security-note"><span>🔒</span><span>No existe registro público. Las cuentas se crean únicamente desde Supabase.</span></div>
             </div>
             <p id="supabaseGateStatus"></p>
           </div>
@@ -80,12 +79,12 @@
     }
 
     const topActions = document.querySelector('.topbar-actions');
-    if (topActions && !document.querySelector('#cloudAccountButton')) topActions.insertAdjacentHTML('afterbegin','<button class="button secondary" id="cloudAccountButton" type="button">Cuenta</button>');
+    if (topActions && !document.querySelector('#cloudAccountButton')) topActions.insertAdjacentHTML('afterbegin', '<button class="button secondary" id="cloudAccountButton" type="button">Cuenta</button>');
     document.documentElement.classList.add('mooreprint-auth-ui-ready');
   }
 
   function setStatus(message, type = '') {
-    ['#supabaseStatus','#supabaseGateStatus'].forEach(selector => {
+    ['#supabaseStatus', '#supabaseGateStatus'].forEach(selector => {
       const target = document.querySelector(selector);
       if (!target) return;
       target.textContent = message || '';
@@ -110,46 +109,41 @@
     const missing = document.querySelector('#supabaseGateMissing');
     const login = document.querySelector('#supabaseGateLogin');
     const sessionBox = document.querySelector('#supabaseSession');
-
     if (gate) gate.hidden = accessGranted;
     if (checking) checking.hidden = !checkingAccess;
     if (missing) missing.hidden = checkingAccess || configured;
     if (login) login.hidden = checkingAccess || !configured || accessGranted;
     if (sessionBox) sessionBox.hidden = !accessGranted;
-
     const email = document.querySelector('#supabaseUserEmail');
     if (email) email.textContent = currentUser?.email || '';
     const account = document.querySelector('#cloudAccountButton');
     if (account) account.textContent = accessGranted ? currentUser?.email || 'Cuenta' : 'Iniciar sesión';
-
     if (!checkingAccess && !configured) setStatus('MoorePrint permanecerá bloqueado hasta conectar Supabase.', 'error');
     else if (!checkingAccess && configured && !accessGranted && !currentUser) setStatus('Escribe tu correo autorizado y contraseña.');
-    else if (accessGranted) setStatus('Acceso autorizado y sincronización activa.', 'ok');
+    else if (accessGranted) setStatus('Acceso autorizado. La sucursal y los permisos se están cargando.', 'ok');
+  }
+
+  function createClient() {
+    if (!isConfigured()) return false;
+    client = window.supabase.createClient(config().url, config().publishableKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+    return true;
   }
 
   function hookLocalSaves() {
     if (saveHooked || typeof saveState !== 'function') return;
-    const localSaveState = saveState;
+    const base = saveState;
     saveState = function (...args) {
-      const result = localSaveState(...args);
+      const result = base(...args);
       if (accessGranted) scheduleSync(state);
       return result;
     };
     saveHooked = true;
   }
 
-  function createClient() {
-    if (!isConfigured()) return false;
-    client = window.supabase.createClient(config().url, config().publishableKey, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-    });
-    return true;
-  }
-
   async function denyAccess(message) {
     currentUser = null;
-    setAccess(false);
     checkingAccess = false;
+    setAccess(false);
     if (client) await client.auth.signOut().catch(() => {});
     updateSessionUI();
     setStatus(message || 'Este correo no está autorizado para entrar a MoorePrint.', 'error');
@@ -164,64 +158,23 @@
       updateSessionUI();
       return false;
     }
-
     checkingAccess = true;
     currentUser = user;
     setAccess(false);
     updateSessionUI();
     setStatus('Comprobando que el correo esté autorizado…');
-
     const { data, error } = await client.rpc('is_mooreprint_user');
     if (error) {
-      const schemaMissing = /is_mooreprint_user|function|schema cache/i.test(error.message || '');
-      return denyAccess(schemaMissing ? 'Falta ejecutar supabase/schema.sql en el SQL Editor.' : `No se pudo validar el acceso: ${error.message}`);
+      const missing = /is_mooreprint_user|function|schema cache/i.test(error.message || '');
+      return denyAccess(missing ? 'Falta ejecutar supabase/schema.sql.' : `No se pudo validar el acceso: ${error.message}`);
     }
     if (data !== true) return denyAccess('Este correo existe, pero no está autorizado para entrar a MoorePrint.');
-
     checkingAccess = false;
     currentUser = user;
     setAccess(true);
     updateSessionUI();
-    if (options.sync !== false) scheduleSync(state, 300);
+    if (options.sync !== false) scheduleSync(state, 1800);
     return true;
-  }
-
-  async function init() {
-    setAccess(false);
-    injectCloudPanels();
-    hookLocalSaves();
-    bindEvents();
-
-    if (!createClient()) {
-      checkingAccess = false;
-      updateSessionUI();
-      return false;
-    }
-
-    checkingAccess = true;
-    updateSessionUI();
-    const { data, error } = await client.auth.getSession();
-    if (error) {
-      checkingAccess = false;
-      setStatus(error.message, 'error');
-      updateSessionUI();
-      return false;
-    }
-
-    await verifyAccess(data?.session?.user || null);
-
-    client.auth.onAuthStateChange((_event, session) => {
-      setTimeout(() => {
-        if (session?.user) verifyAccess(session.user);
-        else {
-          currentUser = null;
-          checkingAccess = false;
-          setAccess(false);
-          updateSessionUI();
-        }
-      }, 0);
-    });
-    return accessGranted;
   }
 
   async function signIn(form) {
@@ -254,7 +207,7 @@
       if (event.target.id === 'supabaseConfigForm') {
         event.preventDefault();
         const values = Object.fromEntries(new FormData(event.target));
-        localStorage.setItem(CONFIG_KEY, JSON.stringify({ url: values.url.trim().replace(/\/$/,''), publishableKey: values.publishableKey.trim() }));
+        localStorage.setItem(CONFIG_KEY, JSON.stringify({ url: values.url.trim().replace(/\/$/, ''), publishableKey: values.publishableKey.trim() }));
         location.reload();
       }
       if (event.target.matches('[data-supabase-login]')) {
@@ -262,19 +215,18 @@
         signIn(event.target);
       }
     });
-
     document.addEventListener('click', event => {
       const target = event.target.closest('button');
       if (!target) return;
       if (target.dataset.supabaseReset !== undefined) resetPassword(target.closest('form'));
       if (target.id === 'clearSupabaseConfig' && confirm('¿Desconectar este proyecto? La página quedará bloqueada.')) {
-        client?.auth.signOut().finally(() => {
-          localStorage.removeItem(CONFIG_KEY);
-          location.reload();
-        });
+        client?.auth.signOut().finally(() => { localStorage.removeItem(CONFIG_KEY); location.reload(); });
       }
       if (target.id === 'supabaseSignOut') client?.auth.signOut();
-      if (target.id === 'syncSupabaseNow') syncSales(state);
+      if (target.id === 'syncSupabaseNow') {
+        window.MoorePrintBranches?.sync?.();
+        syncSales(state);
+      }
       if (target.id === 'refreshCloudSales') refreshSummary();
       if (target.id === 'cloudAccountButton' && accessGranted) navigate('settings');
     });
@@ -282,10 +234,14 @@
 
   function saleRows(appState) {
     if (!accessGranted || !currentUser) return [];
-    return (appState.orders || []).map(order => {
+    const context = window.MoorePrintBranches?.getContext?.();
+    if (!context?.businessId) return [];
+    return (appState.orders || []).filter(order => order.branchId).map(order => {
       const totals = documentTotals(order);
       return {
         user_id: currentUser.id,
+        business_id: context.businessId,
+        branch_id: order.branchId,
         order_id: order.id,
         folio: order.folio || '',
         customer_name: order.customer || entityName(appState.customers || [], order.customerId, ''),
@@ -300,7 +256,7 @@
         profit: totals.profit,
         paid: totals.paid,
         balance: totals.balance,
-        updated_at: new Date().toISOString()
+        updated_at: order.updatedAt || new Date().toISOString()
       };
     });
   }
@@ -310,26 +266,24 @@
       setStatus('Acceso no autorizado.', 'error');
       return false;
     }
-    const rows = saleRows(appState);
-    setStatus('Sincronizando ventas…');
-    const { data: remoteRows, error: readError } = await client.from('sales').select('order_id');
-    if (readError) { setStatus(`Error: ${readError.message}`, 'error'); return false; }
-
-    const localIds = new Set(rows.map(row => row.order_id));
-    const staleIds = (remoteRows || []).map(row => row.order_id).filter(id => !localIds.has(id));
-    if (staleIds.length) {
-      const { error: deleteError } = await client.from('sales').delete().in('order_id', staleIds);
-      if (deleteError) { setStatus(`Error: ${deleteError.message}`, 'error'); return false; }
+    const context = window.MoorePrintBranches?.getContext?.();
+    if (!context?.businessId) {
+      setStatus('Esperando la configuración de sucursales. Ejecuta supabase/branches.sql.', 'error');
+      return false;
     }
-
+    const rows = saleRows(appState);
     if (!rows.length) {
-      setStatus('No hay ventas locales para sincronizar.', 'ok');
-      await refreshSummary();
+      setStatus('No hay ventas de sucursal pendientes por sincronizar.', 'ok');
       return true;
     }
-    const { error } = await client.from('sales').upsert(rows, { onConflict: 'user_id,order_id' });
-    if (error) { setStatus(`Error: ${error.message}`, 'error'); return false; }
-    setStatus(`${rows.length} venta${rows.length === 1 ? '' : 's'} sincronizada${rows.length === 1 ? '' : 's'}.`, 'ok');
+    setStatus('Sincronizando ventas por sucursal…');
+    const { error } = await client.from('sales').upsert(rows, { onConflict: 'business_id,order_id' });
+    if (error) {
+      const missing = /business_id|branch_id|constraint|schema cache/i.test(error.message || '');
+      setStatus(missing ? 'Falta ejecutar supabase/branches.sql.' : `Error: ${error.message}`, 'error');
+      return false;
+    }
+    setStatus(`${rows.length} venta${rows.length === 1 ? '' : 's'} sincronizada${rows.length === 1 ? '' : 's'} por sucursal.`, 'ok');
     await refreshSummary();
     return true;
   }
@@ -347,6 +301,10 @@
       table.innerHTML = '<tr><td colspan="7">Acceso no autorizado.</td></tr>';
       return;
     }
+    if (!window.MoorePrintBranches?.can?.('view_finances')) {
+      table.innerHTML = '<tr><td colspan="7">Tu usuario no tiene permiso para consultar reportes financieros.</td></tr>';
+      return;
+    }
     table.innerHTML = '<tr><td colspan="7">Consultando…</td></tr>';
     const period = document.querySelector('#cloudSalesPeriod')?.value || 'month';
     const from = document.querySelector('#reportFrom')?.value || null;
@@ -359,12 +317,51 @@
     table.innerHTML = data?.length ? data.map(row => `<tr><td>${formatDate(row.period_start)}</td><td>${row.orders_count}</td><td>${money(row.sales_total)}</td><td>${money(row.production_cost)}</td><td class="${num(row.profit_total) < 0 ? 'money-negative' : 'money-positive'}">${money(row.profit_total)}</td><td>${money(row.paid_total)}</td><td>${money(row.balance_total)}</td></tr>`).join('') : '<tr><td colspan="7">No hay ventas en el periodo.</td></tr>';
   }
 
+  async function init() {
+    if (initialized) return accessGranted;
+    initialized = true;
+    setAccess(false);
+    injectCloudPanels();
+    hookLocalSaves();
+    bindEvents();
+    if (!createClient()) {
+      checkingAccess = false;
+      updateSessionUI();
+      return false;
+    }
+    checkingAccess = true;
+    updateSessionUI();
+    const { data, error } = await client.auth.getSession();
+    if (error) {
+      checkingAccess = false;
+      setStatus(error.message, 'error');
+      updateSessionUI();
+      return false;
+    }
+    await verifyAccess(data?.session?.user || null);
+    client.auth.onAuthStateChange((_event, session) => {
+      setTimeout(() => {
+        if (session?.user) verifyAccess(session.user);
+        else {
+          currentUser = null;
+          checkingAccess = false;
+          setAccess(false);
+          updateSessionUI();
+          location.reload();
+        }
+      }, 0);
+    });
+    return accessGranted;
+  }
+
   window.MoorePrintCloud = {
     init,
     syncSales,
     scheduleSync,
     refreshSummary,
     isConfigured,
-    hasAccess: () => accessGranted
+    hasAccess: () => accessGranted,
+    getClient: () => client,
+    getUser: () => currentUser
   };
 })();
