@@ -39,7 +39,7 @@
     state.goals = { sales: 30000, profit: 12000, orders: 80, ...(state.goals || {}) };
     state.business = {
       whatsapp: '', bank: '', clabe: '', depositPercent: 50, quoteValidity: 15,
-      pricingMonth: currentMonthKey(),
+      pricingMonth: currentMonthKey(), selectedBranchId: 'all',
       policies: 'El trabajo comienza al recibir el anticipo y la aprobación del diseño.',
       ...(state.business || {})
     };
@@ -51,6 +51,7 @@
       ...product
     })) : [];
     state.orders = Array.isArray(state.orders) ? state.orders.map(order => ({
+      branchId: '', assignedTo: '', createdBy: '', updatedBy: '',
       designRevisions: 0, approvedBy: '', approvedAt: '', approvalNote: '', designChanges: '', clientApproved: false,
       ...order
     })) : [];
@@ -98,10 +99,12 @@
     loadStyle('access-control.css');
     loadStyle('supplier-catalog.css');
     loadStyle('monthly-overhead.css');
+    loadStyle('branch-access.css');
     loadStyle('usability.css');
     loadStyle('mobile-fixes.css');
     loadScript('supplier-catalog.js');
     loadScript('monthly-overhead.js');
+    loadScript('branch-access.js');
     loadScript('usability.js');
     loadScript('mobile-fixes.js');
     loadScript('catalog-cloud.js');
