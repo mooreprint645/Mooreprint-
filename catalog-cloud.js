@@ -66,10 +66,10 @@
     return { id:row.material_id,name:row.name||'',sku:row.sku||'',category:row.category||'',unit:row.unit||'pieza',stock:num(row.stock),minStock:num(row.min_stock),unitCost:num(row.unit_cost),supplierId:row.supplier_id||'',notes:row.notes||'',createdAt:row.created_at,updatedAt:row.updated_at };
   }
   function productToCloud(row) {
-    return { user_id:user.id,product_id:row.id,name:row.name||'',category:row.category||'',sale_price:num(row.salePrice),tax_percent:num(row.taxPercent),recipe:Array.isArray(row.recipe)?row.recipe:[],labor_cost:num(row.laborCost),design_cost:num(row.designCost),electricity_cost:num(row.electricityCost),packaging_cost:num(row.packagingCost),transport_cost:num(row.transportCost),external_cost:num(row.externalCost),extra_cost:num(row.extraCost),waste_percent:num(row.wastePercent),commission_percent:num(row.commissionPercent),auto_price:Boolean(row.autoPrice),target_margin_percent:num(row.targetMarginPercent)||40,price_rounding:num(row.priceRounding)||1,notes:row.notes||'',created_at:row.createdAt||new Date().toISOString(),updated_at:row.updatedAt||new Date().toISOString() };
+    return { user_id:user.id,product_id:row.id,name:row.name||'',category:row.category||'',sale_price:num(row.salePrice),tax_percent:num(row.taxPercent),recipe:Array.isArray(row.recipe)?row.recipe:[],labor_cost:num(row.laborCost),design_cost:num(row.designCost),electricity_cost:num(row.electricityCost),packaging_cost:num(row.packagingCost),transport_cost:num(row.transportCost),external_cost:num(row.externalCost),extra_cost:num(row.extraCost),waste_percent:num(row.wastePercent),commission_percent:num(row.commissionPercent),auto_price:Boolean(row.autoPrice),target_margin_percent:num(row.targetMarginPercent)||40,price_rounding:num(row.priceRounding)||1,production_minutes:num(row.productionMinutes),notes:row.notes||'',created_at:row.createdAt||new Date().toISOString(),updated_at:row.updatedAt||new Date().toISOString() };
   }
   function productFromCloud(row) {
-    return { id:row.product_id,name:row.name||'',category:row.category||'',salePrice:num(row.sale_price),taxPercent:num(row.tax_percent),recipe:Array.isArray(row.recipe)?row.recipe:[],laborCost:num(row.labor_cost),designCost:num(row.design_cost),electricityCost:num(row.electricity_cost),packagingCost:num(row.packaging_cost),transportCost:num(row.transport_cost),externalCost:num(row.external_cost),extraCost:num(row.extra_cost),wastePercent:num(row.waste_percent),commissionPercent:num(row.commission_percent),autoPrice:Boolean(row.auto_price),targetMarginPercent:num(row.target_margin_percent)||40,priceRounding:num(row.price_rounding)||1,notes:row.notes||'',createdAt:row.created_at,updatedAt:row.updated_at };
+    return { id:row.product_id,name:row.name||'',category:row.category||'',salePrice:num(row.sale_price),taxPercent:num(row.tax_percent),recipe:Array.isArray(row.recipe)?row.recipe:[],laborCost:num(row.labor_cost),designCost:num(row.design_cost),electricityCost:num(row.electricity_cost),packagingCost:num(row.packaging_cost),transportCost:num(row.transport_cost),externalCost:num(row.external_cost),extraCost:num(row.extra_cost),wastePercent:num(row.waste_percent),commissionPercent:num(row.commission_percent),autoPrice:Boolean(row.auto_price),targetMarginPercent:num(row.target_margin_percent)||40,priceRounding:num(row.price_rounding)||1,productionMinutes:num(row.production_minutes),notes:row.notes||'',createdAt:row.created_at,updatedAt:row.updated_at };
   }
   function itemToCloud(row) {
     return { user_id:user.id,item_id:row.id,supplier_id:row.supplierId||'',material_id:row.materialId||'',name:row.name||'',sku:row.sku||'',category:row.category||'',unit:row.unit||'pieza',presentation_qty:num(row.presentationQty)||1,package_price:num(row.packagePrice),shipping_cost:num(row.shippingCost),other_cost:num(row.otherCost),unit_cost:window.MoorePrintSupplierCatalog?.unitCostOf?.(row)??num(row.unitCost),preferred:Boolean(row.preferred),active:row.active!==false,notes:row.notes||'',created_at:row.createdAt||new Date().toISOString(),updated_at:row.updatedAt||new Date().toISOString() };
@@ -115,6 +115,7 @@
       state.supplierCatalog = mergeById(state.supplierCatalog,remote.supplierCatalog,'id');
       state.supplierPriceHistory = mergeById(state.supplierPriceHistory,remote.supplierPriceHistory,'id').sort((a,b)=>String(b.changedAt).localeCompare(String(a.changedAt))).slice(0,2500);
       window.MoorePrintSupplierCatalog?.normalize?.();
+      window.MoorePrintMonthlyCosts?.normalize?.();
       window.MoorePrintSupplierCatalog?.refreshAutomaticProductPrices?.();
       localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
       renderAll();
@@ -123,8 +124,8 @@
       await syncAll();
     } catch (error) {
       hydrated = false;
-      const missing = /relation .* does not exist|schema cache|Could not find the table/i.test(error.message||'');
-      setStatus(missing?'Ejecuta supabase/catalog.sql para activar el catálogo en la nube.':`Error de catálogo: ${error.message}`,'error');
+      const missing = /relation .* does not exist|schema cache|Could not find the table|production_minutes/i.test(error.message||'');
+      setStatus(missing?'Ejecuta supabase/monthly-costs.sql para completar el catálogo en la nube.':`Error de catálogo: ${error.message}`,'error');
     }
   }
 
@@ -158,8 +159,8 @@
       setStatus('Proveedores, costos, inventario y productos sincronizados.','synced');
       return true;
     } catch (error) {
-      const missing = /relation .* does not exist|schema cache|Could not find the table/i.test(error.message||'');
-      setStatus(missing?'Falta ejecutar supabase/catalog.sql.':`No se pudo sincronizar: ${error.message}`,'error');
+      const missing = /relation .* does not exist|schema cache|Could not find the table|production_minutes/i.test(error.message||'');
+      setStatus(missing?'Falta ejecutar supabase/monthly-costs.sql.':`No se pudo sincronizar: ${error.message}`,'error');
       return false;
     } finally { syncing = false; }
   }
