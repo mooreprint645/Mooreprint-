@@ -2,14 +2,19 @@ const { test, expect } = require('@playwright/test');
 const path = require('path');
 
 async function installFixture(page) {
-  await page.setContent(`<!doctype html><html><body>
-    <section id="dashboard" class="active"></section>
-    <section id="settings"><div class="settings-grid"></div></section>
-    <button class="nav-item" data-section="inventory"></button>
-    <button id="newMaterialButton"></button>
-    <div id="toast"></div>
-    <div id="modalBackdrop" hidden><div id="modalBody"></div><div id="modalFooter"></div></div>
-  </body></html>`);
+  await page.route('https://mooreprint.test/**', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: `<!doctype html><html><body>
+      <section id="dashboard" class="active"></section>
+      <section id="settings"><div class="settings-grid"></div></section>
+      <button class="nav-item" data-section="inventory"></button>
+      <button id="newMaterialButton"></button>
+      <div id="toast"></div>
+      <div id="modalBackdrop" hidden><div id="modalBody"></div><div id="modalFooter"></div></div>
+    </body></html>`
+  }));
+  await page.goto('https://mooreprint.test/');
 
   await page.evaluate(() => {
     const profile = {
@@ -112,7 +117,6 @@ async function installFixture(page) {
       isAdmin: () => true,
       can: () => true
     };
-    window.MoorePrintOperations = { reportError: () => {} };
     window.MoorePrintTeamImprovements = { setStatus: () => {} };
   });
 
