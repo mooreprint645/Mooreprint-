@@ -2,6 +2,23 @@
 
 Aplicación web para controlar costos, pedidos, inventario, producción, clientes, proveedores, caja y resultados desde celular o computadora.
 
+## Experiencia sencilla e intuitiva
+
+La interfaz está organizada para que las tareas frecuentes sean fáciles de encontrar:
+
+- Menú agrupado por **Trabajo diario, Ventas, Materiales y compras, Dinero y Sistema**.
+- Panel **¿Qué necesitas hacer?** con accesos rápidos.
+- Guía inicial con progreso para configurar el negocio.
+- Búsqueda general de pedidos, clientes, cotizaciones, productos y materiales con `Ctrl + K`.
+- Botón de ayuda que explica la pantalla actual.
+- Menú inferior en celular con Inicio, Pedidos, Nuevo, Producción y Más.
+- Formularios de pedidos y cotizaciones divididos en pasos.
+- Opciones avanzadas de seguimiento ocultables para evitar formularios saturados.
+- Tablas convertidas en tarjetas legibles en pantallas pequeñas.
+- Botones con nombres y ayudas al pasar el cursor.
+- Estados vacíos con una acción directa para crear el primer registro.
+- Indicador de conexión local o nube.
+
 ## Funciones principales
 
 - **Resumen:** ventas, ganancia neta, caja, cuentas por cobrar, cuentas por pagar, inventario, metas y alertas.
@@ -73,10 +90,11 @@ Antes de cambiarlo, confirma que el servicio de publicación admita repositorios
 ## Archivos principales
 
 - `index.html`: estructura principal.
-- `styles.css`, `brand-theme.css` y `advanced-features.css`: diseño e identidad visual.
+- `styles.css`, `brand-theme.css`, `advanced-features.css` y `usability.css`: diseño e identidad visual.
 - `manifest.webmanifest`, `sw.js`, `icon-192.png` e `icon-512.png`: aplicación PWA.
+- `usability.js`: navegación guiada, búsqueda, formularios por pasos, accesos rápidos y experiencia móvil.
 - `advanced-features.js`: producción, calendario, calculadora, QR, metas, alertas, historial y mermas.
-- `advanced-fixes.js`: compatibilidad con respaldos y limpieza de datos.
+- `advanced-fixes.js`: compatibilidad, normalización y carga de la capa intuitiva.
 - `files-db.js`: archivos adjuntos locales.
 - `app-core.js`: datos, cálculos, inventario y caja.
 - `app-render-main.js` y `app-render-finance.js`: vistas y reportes.
