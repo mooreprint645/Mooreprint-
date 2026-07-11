@@ -1,0 +1,1 @@
+Validación temporal de sintaxis e interfaz avanzada.
