@@ -5,9 +5,10 @@
   const currentSource = document.currentScript?.src || location.href;
   const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
 
-  if (descriptor?.get && descriptor?.set && typeof HTMLSelectElement !== 'undefined') {
+  function stabilizeInnerHtml(Constructor, label) {
+    if (!descriptor?.get || !descriptor?.set || typeof Constructor === 'undefined') return;
     try {
-      Object.defineProperty(HTMLSelectElement.prototype, 'innerHTML', {
+      Object.defineProperty(Constructor.prototype, 'innerHTML', {
         configurable: true,
         enumerable: descriptor.enumerable,
         get() {
@@ -20,9 +21,12 @@
         }
       });
     } catch (error) {
-      console.warn('No fue posible estabilizar los selectores dinámicos.', error);
+      console.warn(`No fue posible estabilizar ${label}.`, error);
     }
   }
+
+  stabilizeInnerHtml(window.HTMLSelectElement, 'los selectores dinámicos');
+  stabilizeInnerHtml(window.HTMLArticleElement, 'los paneles dinámicos');
 
   function loadScriptOnce(file, datasetKey, errorMessage) {
     if (document.querySelector(`script[${datasetKey}]`)) return;
