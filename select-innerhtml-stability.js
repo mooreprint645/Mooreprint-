@@ -5,10 +5,9 @@
   const currentSource = document.currentScript?.src || location.href;
   const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
 
-  function stabilizeInnerHtml(Constructor, label) {
-    if (!descriptor?.get || !descriptor?.set || typeof Constructor === 'undefined') return;
+  if (descriptor?.get && descriptor?.set && typeof HTMLElement !== 'undefined') {
     try {
-      Object.defineProperty(Constructor.prototype, 'innerHTML', {
+      Object.defineProperty(HTMLElement.prototype, 'innerHTML', {
         configurable: true,
         enumerable: descriptor.enumerable,
         get() {
@@ -16,17 +15,19 @@
         },
         set(value) {
           const next = String(value ?? '');
-          if (descriptor.get.call(this) === next) return;
+          const shouldCompare =
+            this instanceof HTMLSelectElement
+            || this.id === 'teamHardeningPanel'
+            || this.id === 'teamOperationsPanel'
+            || this.id === 'teamWorkflowPanel';
+          if (shouldCompare && descriptor.get.call(this) === next) return;
           descriptor.set.call(this, next);
         }
       });
     } catch (error) {
-      console.warn(`No fue posible estabilizar ${label}.`, error);
+      console.warn('No fue posible estabilizar los componentes dinámicos.', error);
     }
   }
-
-  stabilizeInnerHtml(window.HTMLSelectElement, 'los selectores dinámicos');
-  stabilizeInnerHtml(window.HTMLArticleElement, 'los paneles dinámicos');
 
   function loadScriptOnce(file, datasetKey, errorMessage) {
     if (document.querySelector(`script[${datasetKey}]`)) return;
