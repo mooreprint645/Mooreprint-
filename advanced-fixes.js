@@ -36,8 +36,17 @@
         if (auth && typeof auth.onAuthStateChange === 'function' && !auth.__mooreprintAuthPatched) {
           const originalOnAuthStateChange = auth.onAuthStateChange.bind(auth);
           auth.onAuthStateChange = function (callback) {
+            let lastKey = '';
+            let lastAt = 0;
             return originalOnAuthStateChange((event, session) => {
-              if (event === 'INITIAL_SESSION' && !session) return;
+              // getSession() y signInWithPassword() ya validan la sesión de forma explícita.
+              // Ignorar estos eventos evita ocultar y mostrar toda la app dos veces.
+              if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') return;
+              const key = `${event}:${session?.user?.id || ''}`;
+              const now = Date.now();
+              if (key === lastKey && now - lastAt < 1500) return;
+              lastKey = key;
+              lastAt = now;
               callback(event, session);
             });
           };
@@ -147,7 +156,7 @@
     })) : [];
   }
 
-  function preventDuplicateOnboardingRenders() {
+  function preventDuplicateDomRenders() {
     if (window.__mooreprintInnerHtmlGuard) return;
     try {
       const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
@@ -158,7 +167,9 @@
         get: descriptor.get,
         set(value) {
           const next = String(value ?? '');
-          if (this.id === 'uxOnboarding' && descriptor.get.call(this) === next) return;
+          // Evita destruir y reconstruir nodos cuando el contenido no cambió.
+          // Esto elimina parpadeos en tablas, menú, sucursales y paneles periódicos.
+          if (descriptor.get.call(this) === next) return;
           descriptor.set.call(this, value);
         }
       });
@@ -166,6 +177,19 @@
     } catch (error) {
       console.warn('No fue posible activar la optimización visual.', error);
     }
+  }
+
+  function installRenderStabilityStyle() {
+    if (document.querySelector('#mooreprintRenderStabilityStyle')) return;
+    const style = document.createElement('style');
+    style.id = 'mooreprintRenderStabilityStyle';
+    style.textContent = `
+      html.mp-rendering *, html.mp-rendering *::before, html.mp-rendering *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    `;
+    document.head.appendChild(style);
   }
 
   function loadStyle(href) {
@@ -185,7 +209,7 @@
   }
 
   function loadUsabilityLayer() {
-    preventDuplicateOnboardingRenders();
+    preventDuplicateDomRenders();
     loadStyle('access-control.css');
     loadStyle('supplier-catalog.css');
     loadStyle('monthly-overhead.css');
@@ -204,11 +228,17 @@
   protectSupabaseConfig();
   installSupabaseAuthStabilityPatch();
   protectCloudSettingsForEmployees();
+  installRenderStabilityStyle();
   normalizeAdvancedRuntime();
   const previousRenderAll = renderAll;
   renderAll = function () {
     normalizeAdvancedRuntime();
-    return previousRenderAll();
+    document.documentElement.classList.add('mp-rendering');
+    try {
+      return previousRenderAll();
+    } finally {
+      requestAnimationFrame(() => document.documentElement.classList.remove('mp-rendering'));
+    }
   };
 
   loadUsabilityLayer();
