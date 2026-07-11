@@ -204,16 +204,10 @@ test('el indicador distingue conexión, actualización y modo sin conexión', as
   await page.evaluate(() => window.MoorePrintTeamImprovements.setStatus('syncing', 'Actualizando información…'));
   await expect(page.locator('#teamConnectionStatus')).toHaveAttribute('data-state', 'syncing');
 
-  await page.evaluate(() => {
-    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-    window.dispatchEvent(new Event('offline'));
-  });
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
   await expect(page.locator('#teamConnectionStatus')).toHaveAttribute('data-state', 'offline');
   await expect(page.locator('#teamConnectionStatus')).toContainText('cambios quedan pendientes');
 
-  await page.evaluate(() => {
-    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-    window.dispatchEvent(new Event('online'));
-  });
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect.poll(() => page.evaluate(() => window.MoorePrintTeamImprovements.getStatus().state)).toBe('connected');
 });
