@@ -40,6 +40,8 @@ async function loadAdvancedFeatures() {
   window.MoorePrintPerformance?.init?.();
   await loadScriptOnce('team-workflow.js');
   window.MoorePrintTeamWorkflow?.init?.();
+  await loadScriptOnce('team-improvements.js');
+  window.MoorePrintTeamImprovements?.init?.();
 }
 
 async function loadSupabaseCloud() {
