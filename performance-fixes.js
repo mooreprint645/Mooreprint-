@@ -99,6 +99,15 @@
     document.head.appendChild(style);
   }
 
+  function loadTeamWorkflow() {
+    if (document.querySelector('script[src="team-workflow.js"]')) return;
+    const script = document.createElement('script');
+    script.src = 'team-workflow.js';
+    script.defer = true;
+    script.onload = () => window.MoorePrintTeamWorkflow?.init?.();
+    document.head.appendChild(script);
+  }
+
   function setRolePending(pending) {
     document.documentElement.classList.toggle('mp-role-pending', Boolean(pending));
     document.documentElement.classList.toggle('mp-role-ready', !pending);
@@ -177,6 +186,7 @@
     if (initialized) return;
     initialized = true;
     installLightweightStyles();
+    loadTeamWorkflow();
     setRolePending(true);
     bindEmployeeUiRefresh();
     observeAccessState();
