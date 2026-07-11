@@ -24,18 +24,32 @@
     }
   }
 
+  function currentMonthKey() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+
   function normalizeAdvancedRuntime() {
     state.activityLog = Array.isArray(state.activityLog) ? state.activityLog : [];
     state.wasteRecords = Array.isArray(state.wasteRecords) ? state.wasteRecords : [];
     state.supplierCatalog = Array.isArray(state.supplierCatalog) ? state.supplierCatalog : [];
     state.supplierPriceHistory = Array.isArray(state.supplierPriceHistory) ? state.supplierPriceHistory : [];
+    state.monthlyOverheads = Array.isArray(state.monthlyOverheads) ? state.monthlyOverheads : [];
+    state.monthlyOverheadSettings = Array.isArray(state.monthlyOverheadSettings) ? state.monthlyOverheadSettings : [];
     state.goals = { sales: 30000, profit: 12000, orders: 80, ...(state.goals || {}) };
     state.business = {
       whatsapp: '', bank: '', clabe: '', depositPercent: 50, quoteValidity: 15,
+      pricingMonth: currentMonthKey(),
       policies: 'El trabajo comienza al recibir el anticipo y la aprobación del diseño.',
       ...(state.business || {})
     };
-    state.products = Array.isArray(state.products) ? state.products.map(product => ({ autoPrice:false,targetMarginPercent:40,priceRounding:1,...product })) : [];
+    state.products = Array.isArray(state.products) ? state.products.map(product => ({
+      autoPrice: false,
+      targetMarginPercent: 40,
+      priceRounding: 1,
+      productionMinutes: 0,
+      ...product
+    })) : [];
     state.orders = Array.isArray(state.orders) ? state.orders.map(order => ({
       designRevisions: 0, approvedBy: '', approvedAt: '', approvalNote: '', designChanges: '', clientApproved: false,
       ...order
@@ -83,12 +97,15 @@
     preventDuplicateOnboardingRenders();
     loadStyle('access-control.css');
     loadStyle('supplier-catalog.css');
+    loadStyle('monthly-overhead.css');
     loadStyle('usability.css');
     loadStyle('mobile-fixes.css');
     loadScript('supplier-catalog.js');
+    loadScript('monthly-overhead.js');
     loadScript('usability.js');
     loadScript('mobile-fixes.js');
     loadScript('catalog-cloud.js');
+    loadScript('overhead-cloud.js');
   }
 
   protectSupabaseConfig();
