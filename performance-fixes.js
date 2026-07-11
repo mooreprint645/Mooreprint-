@@ -1,5 +1,6 @@
 (function () {
   let initialized = false;
+  let profileTimer = null;
 
   function installLightweightStyles() {
     if (document.querySelector('#mooreprintPerformanceStyles')) return;
@@ -15,6 +16,25 @@
       .calendar-shell,
       .branch-admin-grid {
         contain: layout style;
+      }
+
+      html.mooreprint-access-granted.mp-role-pending .app-shell {
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+
+      html.mooreprint-access-granted.mp-role-pending body::after {
+        content: "Cargando sucursal y permisos…";
+        position: fixed;
+        inset: 0;
+        z-index: 1200;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: #050505;
+        color: #f5c010;
+        font: 800 15px/1.4 Inter, system-ui, sans-serif;
+        text-align: center;
       }
 
       html.mp-employee-mode #settings .settings-grid > .panel {
@@ -79,6 +99,11 @@
     document.head.appendChild(style);
   }
 
+  function setRolePending(pending) {
+    document.documentElement.classList.toggle('mp-role-pending', Boolean(pending));
+    document.documentElement.classList.toggle('mp-role-ready', !pending);
+  }
+
   function applyEmployeeMode() {
     const access = window.MoorePrintBranches;
     const profile = access?.getProfile?.();
@@ -87,28 +112,30 @@
     const employee = !access.isAdmin?.();
     document.documentElement.classList.toggle('mp-employee-mode', employee);
 
+    const settingsButton = document.querySelector('.nav-item[data-section="settings"]');
+    const accountButton = document.querySelector('#cloudAccountButton');
+
     if (employee) {
-      const settingsButton = document.querySelector('.nav-item[data-section="settings"]');
       if (settingsButton) settingsButton.innerHTML = '<span>🚪</span> Cerrar sesión';
-
-      const accountButton = document.querySelector('#cloudAccountButton');
       if (accountButton) accountButton.textContent = 'Cerrar sesión';
-
       if (document.querySelector('#settings')?.classList.contains('active')) {
         const title = document.querySelector('#pageTitle');
         if (title) title.textContent = 'Cerrar sesión';
       }
     }
 
+    setRolePending(false);
     return true;
   }
 
   function waitForProfile() {
-    let attempts = 0;
+    clearTimeout(profileTimer);
     const check = () => {
-      attempts += 1;
-      if (applyEmployeeMode() || attempts >= 100) return;
-      setTimeout(check, 200);
+      if (applyEmployeeMode()) return;
+      if (document.documentElement.classList.contains('mooreprint-access-granted')) {
+        setRolePending(true);
+      }
+      profileTimer = setTimeout(check, 120);
     };
     check();
   }
@@ -120,17 +147,39 @@
       requestAnimationFrame(applyEmployeeMode);
     });
 
-    window.addEventListener('focus', applyEmployeeMode, { passive: true });
+    window.addEventListener('focus', () => {
+      if (!applyEmployeeMode()) waitForProfile();
+    }, { passive: true });
+
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') applyEmployeeMode();
+      if (document.visibilityState !== 'visible') return;
+      if (!applyEmployeeMode()) waitForProfile();
     });
+  }
+
+  function observeAccessState() {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => {
+      if (root.classList.contains('mooreprint-access-granted')) {
+        if (!applyEmployeeMode()) {
+          setRolePending(true);
+          waitForProfile();
+        }
+      } else {
+        setRolePending(true);
+        root.classList.remove('mp-employee-mode');
+      }
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
   }
 
   function init() {
     if (initialized) return;
     initialized = true;
     installLightweightStyles();
+    setRolePending(true);
     bindEmployeeUiRefresh();
+    observeAccessState();
     waitForProfile();
   }
 
