@@ -45,6 +45,10 @@ async function loadAdvancedFeatures() {
   window.MoorePrintGranularSync?.install?.();
   await loadScriptOnce('team-improvements.js');
   window.MoorePrintTeamImprovements?.init?.();
+  await loadScriptOnce('startup-query-limit.js');
+  window.MoorePrintStartupLimit?.install?.();
+  await loadScriptOnce('team-operations.js');
+  window.MoorePrintOperations?.init?.();
 }
 
 async function loadSupabaseCloud() {
