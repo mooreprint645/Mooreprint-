@@ -1,0 +1,1 @@
+Validación temporal del bloqueo por correo autorizado.
