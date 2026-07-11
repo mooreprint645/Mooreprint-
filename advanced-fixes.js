@@ -77,16 +77,32 @@
     }
   }
 
-  function throttleBackgroundChecks() {
-    if (window.__mooreprintIntervalThrottleInstalled) return;
-    const nativeSetInterval = window.setInterval.bind(window);
-    window.setInterval = function (handler, delay, ...args) {
-      const source = typeof handler === 'function' ? Function.prototype.toString.call(handler) : '';
-      const isCloudMonitor = /connectWhenReady|connectIfAllowed|hasAccess\(\).*connect|hasCloudAccess\(\).*connect/.test(source);
-      const nextDelay = isCloudMonitor && Number(delay) < 20000 ? 20000 : delay;
-      return nativeSetInterval(handler, nextDelay, ...args);
-    };
-    window.__mooreprintIntervalThrottleInstalled = true;
+  function installMutationObserverScheduler() {
+    if (window.__mooreprintObserverSchedulerInstalled || !window.MutationObserver) return;
+    const NativeMutationObserver = window.MutationObserver;
+
+    class ScheduledMutationObserver extends NativeMutationObserver {
+      constructor(callback) {
+        let scheduled = false;
+        let pendingRecords = [];
+        let observerReference = null;
+        super((records, observer) => {
+          pendingRecords.push(...records);
+          observerReference = observer;
+          if (scheduled) return;
+          scheduled = true;
+          requestAnimationFrame(() => {
+            scheduled = false;
+            const batch = pendingRecords;
+            pendingRecords = [];
+            callback(batch, observerReference);
+          });
+        });
+      }
+    }
+
+    window.MutationObserver = ScheduledMutationObserver;
+    window.__mooreprintObserverSchedulerInstalled = true;
   }
 
   function currentMonthKey() {
@@ -178,7 +194,7 @@
 
   protectSupabaseConfig();
   installSupabaseAuthStabilityPatch();
-  throttleBackgroundChecks();
+  installMutationObserverScheduler();
   normalizeAdvancedRuntime();
 
   const previousRenderAll = renderAll;
