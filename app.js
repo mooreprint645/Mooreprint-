@@ -6,6 +6,30 @@
   document.head.appendChild(link);
 })();
 
+function loadScriptOnce(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      if (existing.dataset.loaded === 'true') resolve();
+      else existing.addEventListener('load', resolve, { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.defer = true;
+    script.onload = () => { script.dataset.loaded = 'true'; resolve(); };
+    script.onerror = () => reject(new Error(`No se pudo cargar ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function loadSupabaseCloud() {
+  await loadScriptOnce('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
+  await loadScriptOnce('supabase-config.js');
+  await loadScriptOnce('supabase-cloud.js');
+  if (window.MoorePrintCloud) await window.MoorePrintCloud.init();
+}
+
 function applyBrandIdentity() {
   const brand = $('.brand');
   if (!brand) return;
@@ -125,10 +149,12 @@ function setupEvents() {
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('#modalBackdrop').hidden) closeModal(); });
 }
 
-function init() {
+async function init() {
   applyBrandIdentity();
   $('#todayLabel').textContent = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
   setupEvents(); generateRecurringExpenses(false); renderAll();
+  try { await loadSupabaseCloud(); }
+  catch (error) { console.warn('Supabase no está disponible; MoorePrint continúa en modo local.', error); }
 }
 
 document.addEventListener('DOMContentLoaded', init);
