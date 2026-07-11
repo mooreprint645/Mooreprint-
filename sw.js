@@ -1,9 +1,9 @@
-const CACHE_NAME = 'mooreprint-v18';
+const CACHE_NAME = 'mooreprint-v19';
 const APP_SHELL = [
   './', './index.html', './styles.css', './brand-theme.css', './advanced-features.css', './access-control.css', './supplier-catalog.css', './monthly-overhead.css', './branch-access.css', './usability.css', './mobile-fixes.css',
   './files-db.js', './app-core.js', './app-render-main.js', './app-render-finance.js',
   './app-contacts.js', './app-catalog.js', './app-documents.js', './app-finance.js',
-  './app-tools.js', './advanced-fixes.js', './advanced-features.js', './performance-fixes.js', './supplier-catalog.js', './monthly-overhead.js', './branch-access.js', './catalog-cloud.js', './overhead-cloud.js', './usability.js', './mobile-fixes.js', './supabase-config.js', './supabase-cloud.js',
+  './app-tools.js', './advanced-fixes.js', './advanced-features.js', './performance-fixes.js', './team-workflow.js', './supplier-catalog.js', './monthly-overhead.js', './branch-access.js', './catalog-cloud.js', './overhead-cloud.js', './usability.js', './mobile-fixes.js', './supabase-config.js', './supabase-cloud.js',
   './app.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'
 ];
 
