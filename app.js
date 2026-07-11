@@ -33,6 +33,7 @@ function loadScriptOnce(src) {
 
 async function loadAdvancedFeatures() {
   loadStyleOnce('advanced-features.css');
+  await loadScriptOnce('advanced-fixes.js');
   await loadScriptOnce('advanced-features.js');
   if (window.MoorePrintAdvanced) await window.MoorePrintAdvanced.init();
 }
