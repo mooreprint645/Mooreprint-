@@ -1,6 +1,6 @@
 # MoorePrint — Administración integral para imprenta
 
-Aplicación web local para controlar costos, pedidos, inventario, clientes, proveedores, caja y resultados de una imprenta desde celular o computadora.
+Aplicación web para controlar costos, pedidos, inventario, clientes, proveedores, caja y resultados de una imprenta desde celular o computadora.
 
 ## Módulos incluidos
 
@@ -15,6 +15,7 @@ Aplicación web local para controlar costos, pedidos, inventario, clientes, prov
 - **Gastos recurrentes:** generación mensual automática de renta, luz, internet, salarios y suscripciones.
 - **Caja y pagos:** cobros, pagos, retiros, aportaciones, métodos de pago, referencias y corte diario.
 - **Reportes:** ventas, costos, gastos, utilidad, flujo de caja, punto de equilibrio, tendencia mensual, productos rentables, mejores clientes e indicadores operativos.
+- **Supabase:** sincronización de ventas y consultas agrupadas por día, semana, mes y año.
 - **Archivos de pedidos:** diseños, imágenes, PDF y comprobantes guardados localmente en IndexedDB.
 - **Respaldo y exportación:** JSON para recuperar los datos y CSV para abrirlos en Excel.
 
@@ -24,29 +25,40 @@ Cada producto puede tener una receta con los materiales utilizados. Al cambiar u
 
 Las compras aumentan las existencias y actualizan el costo promedio de cada material.
 
-## Guardado local
+## Guardado local y en la nube
 
-Esta versión no utiliza cuentas ni base de datos en línea. La información administrativa se guarda en `localStorage` y los archivos adjuntos en `IndexedDB`.
+La aplicación conserva el guardado local como respaldo inmediato. Cuando Supabase está configurado y el usuario inicia sesión, las ventas también se sincronizan automáticamente a la tabla `sales`.
 
-- Los datos permanecen únicamente en el navegador y dispositivo donde fueron capturados.
-- Es recomendable descargar respaldos JSON con frecuencia.
-- El respaldo JSON incluye los registros administrativos, pero no los archivos adjuntos. Los archivos deben descargarse desde cada pedido.
-- Para trabajar en otro dispositivo, importa allí el respaldo JSON.
+Los archivos adjuntos continúan guardándose en `IndexedDB` del navegador y no se envían a Supabase en esta etapa.
 
-## Publicar con GitHub Pages
+## Configurar Supabase
 
-1. Abre el repositorio en GitHub.
-2. Entra a **Settings → Pages**.
-3. En **Build and deployment**, selecciona **Deploy from a branch**.
-4. Elige la rama `main`, carpeta `/ (root)` y guarda.
-5. La dirección normalmente será:
+1. Crea un proyecto en Supabase.
+2. Abre **SQL Editor** y ejecuta completo el archivo `supabase/schema.sql`.
+3. En **Authentication → Users**, crea el usuario administrador con correo y contraseña.
+4. Abre `supabase-config.js` y completa:
 
-`https://mooreprint645.github.io/Mooreprint-/`
+```js
+window.MOOREPRINT_SUPABASE = {
+  url: 'https://TU-PROYECTO.supabase.co',
+  publishableKey: 'TU_CLAVE_PUBLICA'
+};
+```
+
+5. No coloques la clave `service_role` en ningún archivo de la página.
+6. En MoorePrint entra a **Configuración → Supabase y acceso** e inicia sesión.
+7. En **Reportes → Ventas guardadas en Supabase**, selecciona Día, Semana, Mes o Año.
+
+## Hacer privado el repositorio
+
+En GitHub abre **Settings → General → Danger Zone → Change repository visibility → Make private**.
+
+Antes de hacerlo, confirma que el servicio donde está publicada la página pueda desplegar repositorios privados. GitHub Pages desde repositorios privados requiere un plan compatible.
 
 ## Archivos principales
 
 - `index.html`: interfaz y módulos.
-- `styles.css`: diseño adaptable.
+- `styles.css` y `brand-theme.css`: diseño adaptable e identidad MoorePrint.
 - `files-db.js`: archivos adjuntos locales.
 - `app-core.js`: datos, cálculos, inventario y caja.
 - `app-render-main.js`: tablero, pedidos, clientes, productos e inventario.
@@ -56,4 +68,7 @@ Esta versión no utiliza cuentas ni base de datos en línea. La información adm
 - `app-documents.js`: pedidos y cotizaciones.
 - `app-finance.js`: compras, pagos, gastos y recurrentes.
 - `app-tools.js`: notas, exportaciones y respaldo.
+- `supabase/schema.sql`: tabla, políticas RLS y función de reportes.
+- `supabase-config.js`: URL y clave pública del proyecto.
+- `supabase-cloud.js`: inicio de sesión, sincronización y consultas por periodo.
 - `app.js`: eventos e inicio de la aplicación.
