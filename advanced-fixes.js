@@ -14,7 +14,29 @@
     })) : [];
   }
 
+  function preventDuplicateOnboardingRenders() {
+    if (window.__mooreprintInnerHtmlGuard) return;
+    try {
+      const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+      if (!descriptor?.get || !descriptor?.set || descriptor.configurable === false) return;
+      Object.defineProperty(Element.prototype, 'innerHTML', {
+        configurable: true,
+        enumerable: descriptor.enumerable,
+        get: descriptor.get,
+        set(value) {
+          const next = String(value ?? '');
+          if (this.id === 'uxOnboarding' && descriptor.get.call(this) === next) return;
+          descriptor.set.call(this, value);
+        }
+      });
+      window.__mooreprintInnerHtmlGuard = true;
+    } catch (error) {
+      console.warn('No fue posible activar la optimización visual.', error);
+    }
+  }
+
   function loadUsabilityLayer() {
+    preventDuplicateOnboardingRenders();
     if (!document.querySelector('link[href="usability.css"]')) {
       const style = document.createElement('link');
       style.rel = 'stylesheet';
