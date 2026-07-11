@@ -8,6 +8,7 @@ const app = fs.readFileSync('app.js', 'utf8');
 const serviceWorker = fs.readFileSync('sw.js', 'utf8');
 const improvements = fs.readFileSync('team-improvements.js', 'utf8');
 const operations = fs.readFileSync('team-operations.js', 'utf8');
+const operationsGuard = fs.readFileSync('team-operations-ui-guard.js', 'utf8');
 const startupLimit = fs.readFileSync('startup-query-limit.js', 'utf8');
 const selectStability = fs.readFileSync('select-innerhtml-stability.js', 'utf8');
 const stateBridge = fs.readFileSync('state-bridge.js', 'utf8');
@@ -67,6 +68,8 @@ test('la edición simultánea, historial y errores tienen controles de servidor'
   expect(operations).toContain('Editar de todos modos');
   expect(operations).toContain('Exportar CSV');
   expect(operations).toContain('Errores internos');
+  expect(operationsGuard).toContain('.team-order-lock.danger');
+  expect(operationsGuard).toContain('aria-disabled');
 });
 
 test('pagos, cortes e inventario requieren confirmación especial', async () => {
@@ -82,7 +85,9 @@ test('la aplicación y la caché cargan todos los módulos nuevos', async () => 
     expect(app).toContain(`loadScriptOnce('${file}')`);
     expect(serviceWorker).toContain(`'./${file}'`);
   }
-  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v25'");
+  expect(selectStability).toContain('team-operations-ui-guard.js');
+  expect(serviceWorker).toContain("'./team-operations-ui-guard.js'");
+  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v26'");
   expect(selectStability).toContain('HTMLSelectElement.prototype');
   expect(stateBridge).toContain("Object.defineProperty(window, 'state'");
 });
