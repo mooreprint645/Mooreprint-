@@ -69,3 +69,11 @@ jobs:
 
       - name: Probar permisos, paginación y conexión
         run: npm test
+
+      - name: Guardar resultados de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results
+          if-no-files-found: ignore
