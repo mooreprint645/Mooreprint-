@@ -47,6 +47,7 @@ async function loadAdvancedFeatures() {
   window.MoorePrintTeamImprovements?.init?.();
   await loadScriptOnce('startup-query-limit.js');
   window.MoorePrintStartupLimit?.install?.();
+  await loadScriptOnce('select-innerhtml-stability.js');
   await loadScriptOnce('team-operations.js');
   window.MoorePrintOperations?.init?.();
 }
