@@ -1,7 +1,7 @@
 (function () {
   let initialized = false;
 
-  function normalizeCatalogState() {
+  function normalize() {
     state.supplierCatalog = Array.isArray(state.supplierCatalog) ? state.supplierCatalog : [];
     state.supplierPriceHistory = Array.isArray(state.supplierPriceHistory) ? state.supplierPriceHistory : [];
     state.products = (state.products || []).map(product => ({
@@ -22,14 +22,12 @@
   }
 
   function recommendedProductPrice(product) {
-    const baseProduct = { ...product, commissionPercent: 0 };
-    const baseCost = productBreakdown(baseProduct, 0).total;
+    const baseCost = productBreakdown({ ...product, commissionPercent: 0 }, 0).total;
     const margin = Math.max(0, Math.min(90, num(product.targetMarginPercent))) / 100;
     const commission = Math.max(0, Math.min(60, num(product.commissionPercent))) / 100;
-    const denominator = 1 - margin - commission;
-    const raw = denominator > 0.05 ? baseCost / denominator : baseCost * 2;
+    const denominator = Math.max(0.05, 1 - margin - commission);
     const rounding = Math.max(0.01, num(product.priceRounding) || 1);
-    return Math.ceil(raw / rounding) * rounding;
+    return Math.ceil((baseCost / denominator) / rounding) * rounding;
   }
 
   function refreshAutomaticProductPrices() {
@@ -37,11 +35,10 @@
     state.products.forEach(product => {
       if (!product.autoPrice) return;
       const next = recommendedProductPrice(product);
-      if (Math.abs(num(product.salePrice) - next) > 0.001) {
-        product.salePrice = next;
-        product.updatedAt = new Date().toISOString();
-        changes += 1;
-      }
+      if (Math.abs(num(product.salePrice) - next) <= 0.001) return;
+      product.salePrice = next;
+      product.updatedAt = new Date().toISOString();
+      changes += 1;
     });
     return changes;
   }
@@ -52,12 +49,10 @@
 
   function catalogRow(item = {}) {
     const row = {
-      id: item.id || uid('supplier-item'),
-      name: '', sku: '', category: '', unit: 'pieza', presentationQty: 1,
-      packagePrice: 0, shippingCost: 0, otherCost: 0, materialId: '', preferred: false,
-      notes: '', ...item
+      id: item.id || uid('supplier-item'), name: '', sku: '', category: '', unit: 'pieza',
+      presentationQty: 1, packagePrice: 0, shippingCost: 0, otherCost: 0,
+      materialId: '', preferred: false, notes: '', ...item
     };
-    const unitCost = unitCostOf(row);
     return `<article class="supplier-catalog-row ${row.preferred ? 'preferred' : ''}" data-catalog-id="${row.id}">
       <div class="supplier-catalog-grid">
         <label class="wide">Producto o material<input class="catalog-name" value="${esc(row.name)}" placeholder="Ej. Taza blanca 11 oz"></label>
@@ -74,8 +69,8 @@
       </div>
       <div class="catalog-result">
         <div><span>Total de compra</span><strong class="catalog-package-total">${money(packageTotalOf(row))}</strong></div>
-        <div><span>Costo final por ${esc(row.unit || 'unidad')}</span><strong class="catalog-unit-cost">${money(unitCost)}</strong></div>
-        <div><span>Última actualización</span><strong>${row.updatedAt ? formatDate(String(row.updatedAt).slice(0,10)) : 'Nueva'}</strong></div>
+        <div><span>Costo final por ${esc(row.unit || 'unidad')}</span><strong class="catalog-unit-cost">${money(unitCostOf(row))}</strong></div>
+        <div><span>Última actualización</span><strong>${row.updatedAt ? formatDate(String(row.updatedAt).slice(0, 10)) : 'Nueva'}</strong></div>
       </div>
       <div class="catalog-row-actions"><button class="button danger small" type="button" data-remove-catalog-row>Eliminar artículo</button></div>
     </article>`;
@@ -112,30 +107,23 @@
   function fillRowFromMaterial(row, materialId) {
     const material = state.materials.find(item => item.id === materialId);
     if (!material || !row) return;
-    const name = row.querySelector('.catalog-name');
-    if (name && !name.value.trim()) name.value = material.name || '';
-    const sku = row.querySelector('.catalog-sku');
-    if (sku && !sku.value.trim()) sku.value = material.sku || '';
-    const category = row.querySelector('.catalog-category');
-    if (category && !category.value.trim()) category.value = material.category || '';
-    const unit = row.querySelector('.catalog-unit');
-    if (unit && (!unit.value.trim() || unit.value === 'pieza')) unit.value = material.unit || 'pieza';
+    const mappings = [
+      ['.catalog-name', material.name], ['.catalog-sku', material.sku],
+      ['.catalog-category', material.category], ['.catalog-unit', material.unit || 'pieza']
+    ];
+    mappings.forEach(([selector, value]) => {
+      const input = row.querySelector(selector);
+      if (input && !input.value.trim()) input.value = value || '';
+    });
   }
 
   function createMaterialFromCatalog(item, supplierId) {
     const material = {
-      id: uid('material'),
-      name: item.name,
-      sku: item.sku,
-      category: item.category,
-      unit: item.unit || 'pieza',
-      stock: 0,
-      minStock: 0,
-      unitCost: unitCostOf(item),
-      supplierId,
+      id: uid('material'), name: item.name, sku: item.sku, category: item.category,
+      unit: item.unit || 'pieza', stock: 0, minStock: 0, unitCost: unitCostOf(item),
+      supplierId, lastValuationPurchaseId: '',
       notes: `Creado desde el catálogo de ${entityName(state.suppliers, supplierId)}. ${item.notes || ''}`.trim(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
     };
     state.materials.push(material);
     return material.id;
@@ -146,16 +134,10 @@
     const newCost = unitCostOf(newItem);
     if (oldCost !== null && Math.abs(oldCost - newCost) < 0.001) return;
     state.supplierPriceHistory.unshift({
-      id: uid('price'),
-      supplierItemId: newItem.id,
-      supplierId: newItem.supplierId,
-      materialId: newItem.materialId || '',
-      oldUnitCost: oldCost,
-      newUnitCost: newCost,
-      packagePrice: num(newItem.packagePrice),
-      shippingCost: num(newItem.shippingCost),
-      otherCost: num(newItem.otherCost),
-      changedAt: new Date().toISOString()
+      id: uid('price'), supplierItemId: newItem.id, supplierId: newItem.supplierId,
+      materialId: newItem.materialId || '', oldUnitCost: oldCost, newUnitCost: newCost,
+      packagePrice: num(newItem.packagePrice), shippingCost: num(newItem.shippingCost),
+      otherCost: num(newItem.otherCost), changedAt: new Date().toISOString()
     });
     state.supplierPriceHistory = state.supplierPriceHistory.slice(0, 2500);
   }
@@ -170,50 +152,50 @@
     item.preferred = true;
     material.unitCost = unitCostOf(item);
     material.supplierId = item.supplierId;
+    material.lastValuationPurchaseId = '';
     material.updatedAt = new Date().toISOString();
     refreshAutomaticProductPrices();
     return true;
   }
 
-  function openSupplierModalEnhanced(id = '') {
-    normalizeCatalogState();
+  function openSupplierModal(id = '') {
+    normalize();
     const existing = state.suppliers.find(item => item.id === id);
     const supplier = existing || { id: uid('supplier'), name: '', contact: '', phone: '', email: '', address: '', notes: '' };
     const items = state.supplierCatalog.filter(item => item.supplierId === supplier.id && item.active !== false);
-    openModal(id ? 'Editar proveedor y catálogo' : 'Nuevo proveedor y catálogo', `<form id="supplierForm" class="modal-form">
-      <input type="hidden" name="id" value="${supplier.id}">
-      <div class="form-section"><div class="section-title"><div><h3>Datos del proveedor</h3><p>Contacto y condiciones generales.</p></div></div><div class="modal-form">
-        <label>Proveedor<input name="name" required value="${esc(supplier.name || '')}"></label>
-        <label>Persona de contacto<input name="contact" value="${esc(supplier.contact || '')}"></label>
-        <label>Teléfono<input name="phone" value="${esc(supplier.phone || '')}"></label>
-        <label>Correo<input name="email" type="email" value="${esc(supplier.email || '')}"></label>
-        <label class="full">Dirección<input name="address" value="${esc(supplier.address || '')}"></label>
-        <label class="full">Notas y condiciones<textarea name="notes" rows="3">${esc(supplier.notes || '')}</textarea></label>
-      </div></div>
-      <div class="form-section"><div class="catalog-toolbar"><div><h3>Productos y precios del proveedor</h3><p>El costo unitario incluye precio, envío y otros cargos dividido entre las unidades del paquete.</p></div><button class="button secondary small" id="addSupplierCatalogRow" type="button">+ Agregar artículo</button></div>
-        <div class="supplier-catalog-list" id="supplierCatalogRows">${items.length ? items.map(catalogRow).join('') : catalogRow()}</div>
-      </div>
-    </form>`, `<button class="button secondary" data-close-modal>Cancelar</button><button class="button primary" form="supplierForm">Guardar proveedor y precios</button>`, true);
+    openModal(
+      id ? 'Editar proveedor y catálogo' : 'Nuevo proveedor y catálogo',
+      `<form id="supplierForm" class="modal-form">
+        <input type="hidden" name="id" value="${supplier.id}">
+        <div class="form-section"><div class="section-title"><div><h3>Datos del proveedor</h3><p>Contacto y condiciones generales.</p></div></div><div class="modal-form">
+          <label>Proveedor<input name="name" required value="${esc(supplier.name || '')}"></label>
+          <label>Persona de contacto<input name="contact" value="${esc(supplier.contact || '')}"></label>
+          <label>Teléfono<input name="phone" value="${esc(supplier.phone || '')}"></label>
+          <label>Correo<input name="email" type="email" value="${esc(supplier.email || '')}"></label>
+          <label class="full">Dirección<input name="address" value="${esc(supplier.address || '')}"></label>
+          <label class="full">Notas y condiciones<textarea name="notes" rows="3">${esc(supplier.notes || '')}</textarea></label>
+        </div></div>
+        <div class="form-section"><div class="catalog-toolbar"><div><h3>Productos y precios del proveedor</h3><p>El costo unitario incluye precio, envío y otros cargos dividido entre las unidades del paquete.</p></div><button class="button secondary small" id="addSupplierCatalogRow" type="button">+ Agregar artículo</button></div>
+          <div class="supplier-catalog-list" id="supplierCatalogRows">${items.length ? items.map(catalogRow).join('') : catalogRow()}</div>
+        </div>
+      </form>`,
+      `<button class="button secondary" data-close-modal>Cancelar</button><button class="button primary" form="supplierForm">Guardar proveedor y precios</button>`,
+      true
+    );
   }
 
-  function saveSupplierEnhanced(form) {
-    normalizeCatalogState();
+  function saveSupplier(form) {
+    normalize();
     const data = Object.fromEntries(new FormData(form));
     const supplierId = data.id || uid('supplier');
     const rows = [...form.querySelectorAll('.supplier-catalog-row')]
       .map(row => catalogItemFromRow(row, supplierId))
       .filter(item => item.name);
-
     const supplier = {
-      id: supplierId,
-      name: String(data.name || '').trim(),
-      contact: String(data.contact || '').trim(),
-      phone: String(data.phone || '').trim(),
-      email: String(data.email || '').trim(),
-      address: String(data.address || '').trim(),
-      products: rows.map(item => item.name).join(', '),
-      notes: String(data.notes || '').trim(),
-      updatedAt: new Date().toISOString()
+      id: supplierId, name: String(data.name || '').trim(), contact: String(data.contact || '').trim(),
+      phone: String(data.phone || '').trim(), email: String(data.email || '').trim(),
+      address: String(data.address || '').trim(), products: rows.map(item => item.name).join(', '),
+      notes: String(data.notes || '').trim(), updatedAt: new Date().toISOString()
     };
     if (!supplier.name) return showToast('Escribe el nombre del proveedor', 'error');
 
@@ -224,19 +206,16 @@
     const previousItems = state.supplierCatalog.filter(item => item.supplierId === supplierId);
     rows.forEach(item => {
       if (item.materialId === '__new__') item.materialId = createMaterialFromCatalog(item, supplierId);
-      const previous = previousItems.find(old => old.id === item.id);
-      recordPriceChange(previous, item);
+      recordPriceChange(previousItems.find(old => old.id === item.id), item);
     });
-
     const rowIds = new Set(rows.map(item => item.id));
     state.supplierCatalog = state.supplierCatalog.filter(item => item.supplierId !== supplierId || rowIds.has(item.id));
     rows.forEach(item => {
       const index = state.supplierCatalog.findIndex(old => old.id === item.id);
-      const withDates = { ...item, unitCost: unitCostOf(item), createdAt: index >= 0 ? state.supplierCatalog[index].createdAt : new Date().toISOString() };
-      if (index >= 0) state.supplierCatalog[index] = { ...state.supplierCatalog[index], ...withDates };
-      else state.supplierCatalog.push(withDates);
+      const prepared = { ...item, unitCost: unitCostOf(item), createdAt: index >= 0 ? state.supplierCatalog[index].createdAt : new Date().toISOString() };
+      if (index >= 0) state.supplierCatalog[index] = { ...state.supplierCatalog[index], ...prepared };
+      else state.supplierCatalog.push(prepared);
     });
-
     rows.filter(item => item.preferred && item.materialId).forEach(applyPreferredCatalogItem);
     const automaticUpdates = refreshAutomaticProductPrices();
     closeModal(true);
@@ -244,56 +223,63 @@
   }
 
   function supplierCatalogMarkup(supplierId) {
-    const items = state.supplierCatalog.filter(item => item.supplierId === supplierId && item.active !== false).sort((a,b) => a.name.localeCompare(b.name));
+    const items = state.supplierCatalog.filter(item => item.supplierId === supplierId && item.active !== false).sort((a, b) => a.name.localeCompare(b.name));
     if (!items.length) return '<p>Sin productos con precio.</p>';
     return `<div class="comparison-list">${items.map(item => `<div class="comparison-row ${item.preferred ? 'cheapest' : ''}"><div><strong>${esc(item.name)}</strong><small>${num(item.presentationQty)} ${esc(item.unit)} por paquete · ${esc(item.sku || 'Sin clave')}</small></div><div><strong>${money(item.packagePrice)}</strong><small>paquete</small></div><div><strong>${money(unitCostOf(item))}</strong><small>por ${esc(item.unit)}</small></div><div>${item.preferred ? '<span class="comparison-badge">Costo principal</span>' : item.materialId ? `<button class="button secondary small" data-use-catalog-price="${item.id}">Usar costo</button>` : ''}</div></div>`).join('')}</div>`;
   }
 
   function supplierHistoryMarkup(supplierId) {
     const itemIds = new Set(state.supplierCatalog.filter(item => item.supplierId === supplierId).map(item => item.id));
-    const history = state.supplierPriceHistory.filter(row => itemIds.has(row.supplierItemId)).slice(0,100);
+    const history = state.supplierPriceHistory.filter(row => itemIds.has(row.supplierItemId)).slice(0, 100);
     if (!history.length) return '<p>Sin cambios de precio registrados.</p>';
     return `<div class="price-history">${history.map(row => {
       const item = state.supplierCatalog.find(entry => entry.id === row.supplierItemId);
       const delta = row.oldUnitCost === null ? 0 : num(row.newUnitCost) - num(row.oldUnitCost);
-      return `<div class="price-history-row"><div><strong>${esc(item?.name || 'Artículo')}</strong><small>${new Intl.DateTimeFormat('es-MX',{dateStyle:'medium',timeStyle:'short'}).format(new Date(row.changedAt))}</small></div><span>${row.oldUnitCost === null ? 'Nuevo' : money(row.oldUnitCost)}</span><strong class="${delta > 0 ? 'money-negative' : delta < 0 ? 'money-positive' : ''}">${money(row.newUnitCost)}</strong></div>`;
+      return `<div class="price-history-row"><div><strong>${esc(item?.name || 'Artículo')}</strong><small>${new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(row.changedAt))}</small></div><span>${row.oldUnitCost === null ? 'Nuevo' : money(row.oldUnitCost)}</span><strong class="${delta > 0 ? 'money-negative' : delta < 0 ? 'money-positive' : ''}">${money(row.newUnitCost)}</strong></div>`;
     }).join('')}</div>`;
   }
 
-  function openSupplierHistoryEnhanced(id) {
-    normalizeCatalogState();
-    const supplier = state.suppliers.find(item => item.id === id); if (!supplier) return;
+  function openSupplierHistory(id) {
+    normalize();
+    const supplier = state.suppliers.find(item => item.id === id);
+    if (!supplier) return;
     const purchases = state.purchases.filter(purchase => purchase.supplierId === id);
     const materials = state.materials.filter(material => material.supplierId === id);
     const catalogCount = state.supplierCatalog.filter(item => item.supplierId === id).length;
-    openModal(supplier.name, `<div class="tabs"><button class="tab-button active" data-tab="supplierCatalogTab">Catálogo (${catalogCount})</button><button class="tab-button" data-tab="supplierPurchases">Compras (${purchases.length})</button><button class="tab-button" data-tab="supplierMaterials">Inventario (${materials.length})</button><button class="tab-button" data-tab="supplierPrices">Historial de precios</button><button class="tab-button" data-tab="supplierData">Datos</button></div>
+    openModal(
+      supplier.name,
+      `<div class="tabs"><button class="tab-button active" data-tab="supplierCatalogTab">Catálogo (${catalogCount})</button><button class="tab-button" data-tab="supplierPurchases">Compras (${purchases.length})</button><button class="tab-button" data-tab="supplierMaterials">Inventario (${materials.length})</button><button class="tab-button" data-tab="supplierPrices">Historial de precios</button><button class="tab-button" data-tab="supplierData">Datos</button></div>
       <div class="tab-pane active" id="supplierCatalogTab">${supplierCatalogMarkup(id)}</div>
       <div class="tab-pane" id="supplierPurchases">${purchases.length ? `<div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Factura</th><th>Total</th><th>Saldo</th></tr></thead><tbody>${purchases.map(purchase => `<tr><td>${formatDate(purchase.date)}</td><td>${esc(purchase.invoice || '—')}</td><td>${money(purchaseTotals(purchase).total)}</td><td>${money(purchaseTotals(purchase).balance)}</td></tr>`).join('')}</tbody></table></div>` : '<p>Sin compras.</p>'}</div>
       <div class="tab-pane" id="supplierMaterials">${materials.length ? materials.map(material => `<div class="mini-row"><div><strong>${esc(material.name)}</strong><small>${num(material.stock).toFixed(2)} ${esc(material.unit || '')}</small></div><span>${money(material.unitCost)}</span></div>`).join('') : '<p>Sin materiales vinculados.</p>'}</div>
       <div class="tab-pane" id="supplierPrices">${supplierHistoryMarkup(id)}</div>
-      <div class="tab-pane" id="supplierData"><p><strong>Contacto:</strong> ${esc(supplier.contact || '—')}</p><p><strong>Teléfono:</strong> ${esc(supplier.phone || '—')}</p><p><strong>Correo:</strong> ${esc(supplier.email || '—')}</p><p><strong>Dirección:</strong> ${esc(supplier.address || '—')}</p><p><strong>Notas:</strong> ${esc(supplier.notes || '—')}</p></div>`, `<button class="button secondary" data-close-modal>Cerrar</button><button class="button primary" data-edit-supplier="${id}">Editar proveedor</button>`, true);
+      <div class="tab-pane" id="supplierData"><p><strong>Contacto:</strong> ${esc(supplier.contact || '—')}</p><p><strong>Teléfono:</strong> ${esc(supplier.phone || '—')}</p><p><strong>Correo:</strong> ${esc(supplier.email || '—')}</p><p><strong>Dirección:</strong> ${esc(supplier.address || '—')}</p><p><strong>Notas:</strong> ${esc(supplier.notes || '—')}</p></div>`,
+      `<button class="button secondary" data-close-modal>Cerrar</button><button class="button primary" data-edit-supplier="${id}">Editar proveedor</button>`,
+      true
+    );
   }
 
-  function comparisonKey(item) {
-    return item.materialId ? `material:${item.materialId}` : `name:${item.name.trim().toLowerCase()}`;
-  }
-
-  function openSupplierComparison() {
-    normalizeCatalogState();
+  function openComparison() {
+    normalize();
     const groups = {};
-    state.supplierCatalog.filter(item => item.active !== false && item.name).forEach(item => (groups[comparisonKey(item)] ||= []).push(item));
-    const sortedGroups = Object.values(groups).sort((a,b) => a[0].name.localeCompare(b[0].name));
-    const body = sortedGroups.length ? `<div class="comparison-list">${sortedGroups.map(items => {
-      const sorted = [...items].sort((a,b) => unitCostOf(a) - unitCostOf(b));
-      const first = sorted[0];
-      const material = first.materialId ? state.materials.find(row => row.id === first.materialId) : null;
-      return `<section class="comparison-group"><div class="comparison-heading"><div><h3>${esc(material?.name || first.name)}</h3><small>${sorted.length} proveedor${sorted.length === 1 ? '' : 'es'} · mejor costo ${money(unitCostOf(first))}</small></div>${material ? `<span class="supplier-chip">Costo actual ${money(material.unitCost)}</span>` : ''}</div><div class="comparison-table">${sorted.map((item,index) => `<div class="comparison-row ${index === 0 ? 'cheapest' : ''}"><div><strong>${esc(entityName(state.suppliers,item.supplierId))}</strong><small>${num(item.presentationQty)} ${esc(item.unit)} · paquete ${money(item.packagePrice)} · envío ${money(item.shippingCost)}</small></div><div><strong>${money(unitCostOf(item))}</strong><small>por ${esc(item.unit)}</small></div><div>${index === 0 ? '<span class="comparison-badge">Más económico</span>' : item.preferred ? '<span class="comparison-badge">Actual</span>' : ''}</div><div>${item.materialId ? `<button class="button ${item.preferred ? 'secondary' : 'primary'} small" data-use-catalog-price="${item.id}" ${item.preferred ? 'disabled' : ''}>${item.preferred ? 'En uso' : 'Usar este costo'}</button>` : ''}</div></div>`).join('')}</div></section>`;
-    }).join('')}</div>` : '<div class="catalog-empty"><h3>No hay precios para comparar</h3><p>Agrega artículos dentro de cada proveedor.</p></div>';
+    state.supplierCatalog.filter(item => item.active !== false && item.name).forEach(item => {
+      const key = item.materialId ? `material:${item.materialId}` : `name:${item.name.trim().toLowerCase()}`;
+      (groups[key] ||= []).push(item);
+    });
+    const sortedGroups = Object.values(groups).sort((a, b) => a[0].name.localeCompare(b[0].name));
+    const body = sortedGroups.length
+      ? `<div class="comparison-list">${sortedGroups.map(items => {
+          const sorted = [...items].sort((a, b) => unitCostOf(a) - unitCostOf(b));
+          const first = sorted[0];
+          const material = first.materialId ? state.materials.find(row => row.id === first.materialId) : null;
+          return `<section class="comparison-group"><div class="comparison-heading"><div><h3>${esc(material?.name || first.name)}</h3><small>${sorted.length} proveedor${sorted.length === 1 ? '' : 'es'} · mejor costo ${money(unitCostOf(first))}</small></div>${material ? `<span class="supplier-chip">Costo actual ${money(material.unitCost)}</span>` : ''}</div><div class="comparison-table">${sorted.map((item, index) => `<div class="comparison-row ${index === 0 ? 'cheapest' : ''}"><div><strong>${esc(entityName(state.suppliers, item.supplierId))}</strong><small>${num(item.presentationQty)} ${esc(item.unit)} · paquete ${money(item.packagePrice)} · envío ${money(item.shippingCost)}</small></div><div><strong>${money(unitCostOf(item))}</strong><small>por ${esc(item.unit)}</small></div><div>${index === 0 ? '<span class="comparison-badge">Más económico</span>' : item.preferred ? '<span class="comparison-badge">Actual</span>' : ''}</div><div>${item.materialId ? `<button class="button ${item.preferred ? 'secondary' : 'primary'} small" data-use-catalog-price="${item.id}" ${item.preferred ? 'disabled' : ''}>${item.preferred ? 'En uso' : 'Usar este costo'}</button>` : ''}</div></div>`).join('')}</div></section>`;
+        }).join('')}</div>`
+      : '<div class="catalog-empty"><h3>No hay precios para comparar</h3><p>Agrega artículos dentro de cada proveedor.</p></div>';
     openModal('Comparador de proveedores', body, '<button class="button secondary" data-close-modal>Cerrar</button>', true);
   }
 
-  function renderSuppliersEnhanced() {
-    normalizeCatalogState();
+  function renderSuppliers() {
+    normalize();
     const query = ($('#supplierSearch')?.value || '').trim().toLowerCase();
     const suppliers = state.suppliers.filter(supplier => {
       const catalog = state.supplierCatalog.filter(item => item.supplierId === supplier.id).map(item => `${item.name} ${item.sku} ${item.category}`).join(' ');
@@ -304,155 +290,73 @@
       const stats = supplierStats(supplier.id);
       const items = state.supplierCatalog.filter(item => item.supplierId === supplier.id && item.active !== false);
       const cheapest = items.length ? Math.min(...items.map(unitCostOf)) : 0;
-      return `<article class="entity-card"><div class="entity-card-header"><div><h3>${esc(supplier.name)}</h3><p>${esc(supplier.contact || '')}</p><p>${esc(supplier.phone || '')}</p></div><div class="action-group"><button class="action-button" data-view-supplier="${supplier.id}" title="Ver catálogo">◉</button><button class="action-button" data-edit-supplier="${supplier.id}" title="Editar">✎</button><button class="action-button" data-delete-supplier="${supplier.id}" title="Eliminar">×</button></div></div><div class="supplier-summary-chips"><span class="supplier-chip">${items.length} artículo${items.length === 1 ? '' : 's'}</span>${cheapest ? `<span class="supplier-chip preferred">Desde ${money(cheapest)}</span>` : ''}</div><p>${esc(items.slice(0,4).map(item => item.name).join(', ') || supplier.products || 'Sin productos indicados')}</p><p>${esc(supplier.address || '')}</p><div class="entity-stats"><div class="entity-stat"><span>Compras</span><strong>${stats.purchases}</strong></div><div class="entity-stat"><span>Total</span><strong>${money(stats.total)}</strong></div><div class="entity-stat"><span>Se debe</span><strong class="${stats.balance ? 'money-warning' : ''}">${money(stats.balance)}</strong></div></div></article>`;
+      return `<article class="entity-card"><div class="entity-card-header"><div><h3>${esc(supplier.name)}</h3><p>${esc(supplier.contact || '')}</p><p>${esc(supplier.phone || '')}</p></div><div class="action-group"><button class="action-button" data-view-supplier="${supplier.id}" title="Ver catálogo">◉</button><button class="action-button" data-edit-supplier="${supplier.id}" title="Editar">✎</button><button class="action-button" data-delete-supplier="${supplier.id}" title="Eliminar">×</button></div></div><div class="supplier-summary-chips"><span class="supplier-chip">${items.length} artículo${items.length === 1 ? '' : 's'}</span>${cheapest ? `<span class="supplier-chip preferred">Desde ${money(cheapest)}</span>` : ''}</div><p>${esc(items.slice(0, 4).map(item => item.name).join(', ') || supplier.products || 'Sin productos indicados')}</p><p>${esc(supplier.address || '')}</p><div class="entity-stats"><div class="entity-stat"><span>Compras</span><strong>${stats.purchases}</strong></div><div class="entity-stat"><span>Total</span><strong>${money(stats.total)}</strong></div><div class="entity-stat"><span>Se debe</span><strong class="${stats.balance ? 'money-warning' : ''}">${money(stats.balance)}</strong></div></div></article>`;
     }).join('');
   }
 
-  function injectSupplierTools() {
+  function ensureToolbar() {
     const toolbar = document.querySelector('#suppliers .section-toolbar');
-    if (toolbar && !document.querySelector('#compareSuppliersButton')) {
-      const add = document.querySelector('#newSupplierButton');
-      add?.insertAdjacentHTML('beforebegin','<button class="button secondary" id="compareSuppliersButton" type="button">⚖ Comparar precios</button>');
-    }
+    if (!toolbar || document.querySelector('#compareSuppliersButton')) return;
+    document.querySelector('#newSupplierButton')?.insertAdjacentHTML('beforebegin', '<button class="button secondary" id="compareSuppliersButton" type="button">⚖ Comparar precios</button>');
   }
 
-  function injectAutoPricing(form) {
-    if (!form || form.querySelector('#autoPricePanel')) return;
-    const salePrice = form.elements.salePrice;
-    const product = state.products.find(item => item.id === form.elements.id.value) || { autoPrice:false,targetMarginPercent:40,priceRounding:1 };
-    const firstSection = form.querySelector('.form-section');
-    firstSection?.insertAdjacentHTML('beforeend', `<div class="auto-price-panel" id="autoPricePanel"><label class="catalog-preferred-check"><input name="autoPrice" id="autoPriceCheckbox" type="checkbox" ${product.autoPrice ? 'checked' : ''}> Calcular precio automáticamente cuando cambien los costos</label><div class="auto-price-grid"><label>Margen deseado %<input name="targetMarginPercent" class="product-cost-input" type="number" min="1" max="90" step="0.1" value="${num(product.targetMarginPercent) || 40}"></label><label>Redondear hacia arriba a múltiplos de<input name="priceRounding" class="product-cost-input" type="number" min="0.01" step="0.01" value="${num(product.priceRounding) || 1}"></label><div class="auto-price-result"><span>Precio recomendado</span><strong id="recommendedProductPrice">${money(product.salePrice)}</strong></div></div><small class="field-help">Ejemplo: con redondeo de $5, un cálculo de $87.20 se convierte en $90.</small></div>`);
-    if (salePrice) salePrice.readOnly = Boolean(product.autoPrice);
-  }
-
-  function productFromForm(form) {
-    const data = Object.fromEntries(new FormData(form));
-    const recipe = $$('.line-row.recipe', form).map(row => ({ materialId: $('.recipe-material', row).value, qty: num($('.recipe-qty', row).value) })).filter(row => row.materialId && row.qty > 0);
-    return {
-      id: data.id || uid('product'), name: String(data.name || '').trim(), category: String(data.category || '').trim(),
-      salePrice: num(data.salePrice), taxPercent: num(data.taxPercent), recipe,
-      laborCost: num(data.laborCost), designCost: num(data.designCost), electricityCost: num(data.electricityCost),
-      packagingCost: num(data.packagingCost), transportCost: num(data.transportCost), externalCost: num(data.externalCost),
-      extraCost: num(data.extraCost), wastePercent: num(data.wastePercent), commissionPercent: num(data.commissionPercent),
-      autoPrice: Boolean(form.elements.autoPrice?.checked), targetMarginPercent: num(data.targetMarginPercent) || 40,
-      priceRounding: num(data.priceRounding) || 1, notes: String(data.notes || '').trim(), updatedAt: new Date().toISOString()
-    };
-  }
-
-  function updateProductCostPreviewEnhanced() {
-    const form = $('#productForm'); if (!form) return;
-    const product = productFromForm(form);
-    const recommended = recommendedProductPrice(product);
-    const recommendedNode = $('#recommendedProductPrice');
-    if (recommendedNode) recommendedNode.textContent = money(recommended);
-    if (form.elements.salePrice) {
-      form.elements.salePrice.readOnly = product.autoPrice;
-      if (product.autoPrice) form.elements.salePrice.value = recommended.toFixed(2);
-    }
-    baseUpdateProductCostPreview();
-  }
-
-  function saveProductEnhanced(form) {
-    const product = productFromForm(form);
-    if (!product.name) return showToast('Escribe el nombre del producto', 'error');
-    if (product.autoPrice) product.salePrice = recommendedProductPrice(product);
-    const index = state.products.findIndex(item => item.id === product.id);
-    if (index >= 0) state.products[index] = { ...state.products[index], ...product };
-    else state.products.push({ ...product, createdAt: new Date().toISOString() });
-    closeModal(true);
-    saveState(index >= 0 ? 'Producto y precio actualizados' : 'Producto y precio agregados');
-  }
-
-  let baseUpdateProductCostPreview = updateProductCostPreview;
-
-  function wrapFunctions() {
-    openSupplierModal = openSupplierModalEnhanced;
-    saveSupplier = saveSupplierEnhanced;
-    openSupplierHistory = openSupplierHistoryEnhanced;
-    renderSuppliers = renderSuppliersEnhanced;
-
-    const baseOpenProductModal = openProductModal;
-    openProductModal = function (...args) {
-      baseOpenProductModal(...args);
-      injectAutoPricing(document.querySelector('#productForm'));
-      updateProductCostPreviewEnhanced();
-    };
-    updateProductCostPreview = updateProductCostPreviewEnhanced;
-    saveProduct = saveProductEnhanced;
-
-    const baseSelectedSnapshot = selectedProductSnapshot;
-    selectedProductSnapshot = function (productId, price = null) {
-      const product = state.products.find(item => item.id === productId);
-      if (product?.autoPrice) {
-        const recommended = recommendedProductPrice(product);
-        product.salePrice = recommended;
-        return { productId: product.id, name: product.name, price: price === null ? recommended : num(price), cost: productBreakdown(product, price === null ? recommended : price).total, recipe: clone(product.recipe || []) };
-      }
-      return baseSelectedSnapshot(productId, price);
-    };
-
-    const basePerformDelete = typeof performDelete === 'function' ? performDelete : null;
-    if (basePerformDelete) performDelete = function (type, id) {
-      if (type === 'supplier') {
-        const itemIds = new Set(state.supplierCatalog.filter(item => item.supplierId === id).map(item => item.id));
-        state.supplierCatalog = state.supplierCatalog.filter(item => item.supplierId !== id);
-        state.supplierPriceHistory = state.supplierPriceHistory.filter(row => !itemIds.has(row.supplierItemId));
-      }
-      return basePerformDelete(type, id);
-    };
+  function cleanupSupplier(supplierId) {
+    const itemIds = new Set(state.supplierCatalog.filter(item => item.supplierId === supplierId).map(item => item.id));
+    state.supplierCatalog = state.supplierCatalog.filter(item => item.supplierId !== supplierId);
+    state.supplierPriceHistory = state.supplierPriceHistory.filter(row => !itemIds.has(row.supplierItemId));
   }
 
   function bindEvents() {
     document.addEventListener('click', event => {
-      const target = event.target.closest('button'); if (!target) return;
+      const target = event.target.closest('button');
+      if (!target) return;
       if (target.id === 'addSupplierCatalogRow') document.querySelector('#supplierCatalogRows')?.insertAdjacentHTML('beforeend', catalogRow());
       if (target.dataset.removeCatalogRow !== undefined) {
         const list = target.closest('.supplier-catalog-list');
         target.closest('.supplier-catalog-row')?.remove();
         if (list && !list.children.length) list.insertAdjacentHTML('beforeend', catalogRow());
       }
-      if (target.id === 'compareSuppliersButton') openSupplierComparison();
+      if (target.id === 'compareSuppliersButton') openComparison();
       if (target.dataset.useCatalogPrice) {
         const item = state.supplierCatalog.find(row => row.id === target.dataset.useCatalogPrice);
         if (item && applyPreferredCatalogItem(item)) {
           closeModal(true);
-          saveState(`Costo de ${entityName(state.materials,item.materialId)} actualizado a ${money(unitCostOf(item))}`);
+          saveState(`Costo de ${entityName(state.materials, item.materialId)} actualizado a ${money(unitCostOf(item))}`);
         }
       }
     });
-
     document.addEventListener('input', event => {
       const row = event.target.closest('.supplier-catalog-row');
       if (row) updateCatalogRowPreview(row);
     });
     document.addEventListener('change', event => {
       const row = event.target.closest('.supplier-catalog-row');
-      if (row) {
-        if (event.target.classList.contains('catalog-material')) fillRowFromMaterial(row,event.target.value);
-        updateCatalogRowPreview(row);
-      }
-      if (event.target.id === 'autoPriceCheckbox') updateProductCostPreviewEnhanced();
+      if (!row) return;
+      if (event.target.classList.contains('catalog-material')) fillRowFromMaterial(row, event.target.value);
+      updateCatalogRowPreview(row);
     });
   }
 
-  function initialize() {
+  function init() {
     if (initialized) return;
     initialized = true;
-    normalizeCatalogState();
-    wrapFunctions();
+    normalize();
     bindEvents();
-    injectSupplierTools();
+    ensureToolbar();
     refreshAutomaticProductPrices();
-    renderAll();
-    window.MoorePrintSupplierCatalog = {
-      normalize: normalizeCatalogState,
-      unitCostOf,
-      recommendedProductPrice,
-      refreshAutomaticProductPrices,
-      openComparison: openSupplierComparison
-    };
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize);
-  else initialize();
+  window.MoorePrintSupplierCatalog = {
+    init,
+    normalize,
+    render: renderSuppliers,
+    openSupplierModal,
+    saveSupplier,
+    openSupplierHistory,
+    cleanupSupplier,
+    unitCostOf,
+    recommendedProductPrice,
+    refreshAutomaticProductPrices,
+    openComparison
+  };
 })();
