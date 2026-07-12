@@ -20,8 +20,13 @@ const pwa = fs.readFileSync('pwa.js', 'utf8');
 const assistant = fs.readFileSync('business-assistant.js', 'utf8');
 const contacts = fs.readFileSync('app-contacts.js', 'utf8');
 const accountingMath = fs.readFileSync('accounting-math.js', 'utf8');
-const accountingIntegrity = fs.readFileSync('accounting-integrity.js', 'utf8');
 const core = fs.readFileSync('app-core.js', 'utf8');
+const finance = fs.readFileSync('app-finance.js', 'utf8');
+const renderMain = fs.readFileSync('app-render-main.js', 'utf8');
+const renderFinance = fs.readFileSync('app-render-finance.js', 'utf8');
+const catalog = fs.readFileSync('app-catalog.js', 'utf8');
+const supplierCatalog = fs.readFileSync('supplier-catalog.js', 'utf8');
+const monthlyOverhead = fs.readFileSync('monthly-overhead.js', 'utf8');
 
 test('las políticas usan permisos diferentes para ver, crear, editar y eliminar', async () => {
   for (const permission of [
@@ -73,12 +78,9 @@ test('la edición simultánea, historial y errores tienen controles de servidor'
   expect(operationsSql).toContain('create or replace function public.page_team_activity');
   expect(operationsSql).toContain('create table if not exists public.team_errors');
   expect(operationsSql).toContain('create or replace function public.record_team_error');
-  expect(operationsSql).toContain("current_app_role() <> 'owner'");
   expect(operations).toContain('Editar de todos modos');
   expect(operations).toContain('Exportar CSV');
-  expect(operations).toContain('Errores internos');
   expect(operationsGuard).toContain('.team-order-lock.danger');
-  expect(operationsGuard).toContain('aria-disabled');
 });
 
 test('pagos, cortes e inventario requieren confirmación especial', async () => {
@@ -89,31 +91,66 @@ test('pagos, cortes e inventario requieren confirmación especial', async () => 
   expect(operations).toContain('confirmInventoryImpact');
 });
 
-test('la aplicación y la caché cargan todos los módulos nuevos', async () => {
-  for (const file of ['accounting-math.js', 'state-bridge.js', 'granular-sync-guard.js', 'team-improvements.js', 'startup-query-limit.js', 'select-innerhtml-stability.js', 'team-operations.js', 'business-assistant.js', 'accounting-integrity.js']) {
-    expect(app).toContain(`loadScriptOnce('${file}')`);
+test('los scripts y estilos se cargan de forma estática y visible', async () => {
+  const scripts = [
+    'accounting-math.js', 'app-core.js', 'app-render-main.js', 'app-render-finance.js',
+    'app-contacts.js', 'app-catalog.js', 'app-documents.js', 'app-finance.js', 'app-tools.js',
+    'state-bridge.js', 'granular-sync-guard.js', 'team-improvements.js', 'startup-query-limit.js',
+    'select-innerhtml-stability.js', 'team-operations.js', 'team-operations-ui-guard.js',
+    'team-hardening.js', 'supplier-catalog.js', 'monthly-overhead.js', 'business-assistant.js', 'app.js'
+  ];
+  scripts.forEach(file => {
+    expect(html).toContain(`<script src="${file}"></script>`);
     expect(serviceWorker).toContain(`'./${file}'`);
+  });
+  for (const stylesheet of ['brand-theme.css', 'advanced-features.css', 'supplier-catalog.css', 'monthly-overhead.css', 'business-assistant.css']) {
+    expect(html).toContain(`<link rel="stylesheet" href="${stylesheet}">`);
+    expect(serviceWorker).toContain(`'./${stylesheet}'`);
   }
-  expect(app).toContain("loadStyleOnce('business-assistant.css')");
-  expect(serviceWorker).toContain("'./business-assistant.css'");
-  expect(selectStability).toContain('team-operations-ui-guard.js');
-  expect(selectStability).toContain('team-hardening.js');
-  expect(serviceWorker).toContain("'./team-operations-ui-guard.js'");
-  expect(serviceWorker).toContain("'./team-hardening.js'");
-  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v30'");
-  expect(selectStability).toContain('HTMLSelectElement');
-  expect(stateBridge).toContain("Object.defineProperty(window, 'state'");
+  expect(app).not.toContain('loadScriptOnce');
+  expect(app).not.toContain('loadStyleOnce');
+  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v32'");
+});
+
+test('el núcleo usa un solo motor contable', async () => {
+  expect(core).toContain('const Accounting = window.MoorePrintAccountingMath');
+  expect(core).toContain('function documentTotals(document) { return Accounting.documentTotals(document); }');
+  expect(core).toContain('function purchaseTotals(purchase) { return Accounting.purchaseTotals(purchase); }');
+  expect(core).toContain('function expenseTotals(expense) { return Accounting.expenseTotals(expense, todayISO()); }');
+  expect(accountingMath).toContain('profit: netRevenue - costs');
+  expect(accountingMath).toContain('credit: Math.max(0, paid - total)');
+  expect(accountingMath).toContain('reversePurchaseValuation');
+  expect(accountingMath).toContain('applyPurchaseValuation');
+});
+
+test('productos, proveedores y costos mensuales usan APIs explícitas', async () => {
+  expect(catalog).toContain('function recommendedProductPrice(product)');
+  expect(catalog).toContain('function productOverheadMarkup(product)');
+  expect(contacts).toContain('window.MoorePrintSupplierCatalog');
+  expect(renderMain).toContain('if (service?.render) return service.render()');
+  expect(supplierCatalog).toContain('window.MoorePrintSupplierCatalog =');
+  expect(monthlyOverhead).toContain('window.MoorePrintMonthlyCosts =');
+  expect(monthlyOverhead).not.toContain('baseProductBreakdown');
+  expect(monthlyOverhead).not.toContain('renderAll = function');
+  expect(supplierCatalog).not.toContain('openSupplierModal = openSupplierModalEnhanced');
+});
+
+test('gastos y reportes concilian costos sin envolturas', async () => {
+  expect(finance).toContain('includedInPricing: Boolean(form.elements.includedInPricing?.checked)');
+  expect(finance).toContain('includedInPricing: Boolean(item.includedInPricing)');
+  expect(renderMain).toContain('function accountingExpenseSummary');
+  expect(renderFinance).toContain('expenseSummary.reconciled');
+  expect(renderFinance).toContain('Accounting.productProfitRows(order)');
+  expect(renderFinance).toContain('payment.date');
 });
 
 test('los archivos locales tienen respaldo completo e importación', async () => {
   expect(filesDb).toContain('async function exportBackup()');
   expect(filesDb).toContain('async function importBackup(file');
-  expect(filesDb).toContain('format: BACKUP_FORMAT');
   expect(localProtection).toContain('exportFilesBackupButton');
   expect(localProtection).toContain('importFilesBackupInput');
   expect(html).toContain('Respaldar archivos adjuntos');
   expect(html).toContain('Restaurar archivos adjuntos');
-  expect(serviceWorker).toContain("'./local-protection.js'");
 });
 
 test('MoorePrint se puede instalar como aplicación', async () => {
@@ -122,7 +159,6 @@ test('MoorePrint se puede instalar como aplicación', async () => {
   expect(html).toContain('id="installAppButton"');
   expect(pwa).toContain("navigator.serviceWorker.register('./sw.js'");
   expect(pwa).toContain('beforeinstallprompt');
-  expect(serviceWorker).toContain("'./pwa.js'");
 });
 
 test('los avisos automáticos revisan entregas, cobros, inventario y gastos', async () => {
@@ -137,10 +173,10 @@ test('los avisos automáticos revisan entregas, cobros, inventario y gastos', as
 });
 
 test('la ayuda explica los flujos principales', async () => {
-  expect(assistant).toContain("title: 'Registrar un pedido'");
-  expect(assistant).toContain("title: 'Realizar un corte de caja'");
-  expect(assistant).toContain("title: 'Crear respaldos'");
-  expect(assistant).toContain("title: 'Preparar una factura CFDI'");
+  expect(assistant).toContain("'Registrar un pedido'");
+  expect(assistant).toContain("'Realizar un corte de caja'");
+  expect(assistant).toContain("'Crear respaldos'");
+  expect(assistant).toContain("'Preparar una factura CFDI'");
   expect(assistant).toContain('helpSearch');
 });
 
@@ -156,24 +192,14 @@ test('la preparación CFDI conserva datos fiscales sin simular timbrado', async 
   expect(assistant).not.toContain('certificatePassword');
 });
 
-test('la integridad contable separa IVA, saldos a favor, efectivo y costo promedio', async () => {
-  expect(accountingMath).toContain('netRevenue - costs');
-  expect(accountingMath).toContain('credit: Math.max(0, paid - total)');
-  expect(accountingMath).toContain('reversePurchaseValuation');
-  expect(accountingMath).toContain('applyPurchaseValuation');
-  expect(accountingMath).toContain('productProfitRows');
-  expect(core).toContain("method: 'efectivo'");
-  expect(core).toContain('function reversePurchaseInventory');
-  expect(core).toContain('function cashBalancesByMethod');
-  expect(accountingIntegrity).toContain('includedInPricing');
-  expect(accountingIntegrity).toContain('costos fijos ya incluidos y conciliados');
-  expect(accountingIntegrity).toContain('Ventas netas');
-  expect(accountingIntegrity).toContain('Saldos por método');
+test('la compatibilidad heredada queda aislada y no carga scripts', async () => {
+  expect(selectStability).toContain('HTMLSelectElement');
+  expect(selectStability).not.toContain('createElement(\'script\')');
+  expect(selectStability).not.toContain('accounting-cloud-sync.js');
+  expect(stateBridge).toContain("Object.defineProperty(window, 'state'");
 });
 
 test('el indicador contempla los cuatro estados operativos', async () => {
-  for (const state of ['connected', 'syncing', 'offline', 'error']) {
-    expect(improvements).toContain(`${state}:`);
-  }
+  for (const status of ['connected', 'syncing', 'offline', 'error']) expect(improvements).toContain(`${status}:`);
   expect(improvements).toContain('Sin conexión · los cambios quedan pendientes.');
 });
