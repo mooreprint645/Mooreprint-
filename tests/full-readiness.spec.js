@@ -45,6 +45,7 @@ async function installDiagnostics(page) {
       rows.push({ time: Date.now(), ...entry });
       sessionStorage.setItem(key, JSON.stringify(rows.slice(-100)));
     };
+    const formId = event => event.target?.getAttribute?.('id') || '';
     window.__readSubmitDiagnostics = read;
     window.addEventListener('error', event => write({ kind: 'page-error', message: event.message || String(event.error || '') }));
     window.addEventListener('unhandledrejection', event => write({ kind: 'rejection', message: String(event.reason?.stack || event.reason || '') }));
@@ -56,11 +57,11 @@ async function installDiagnostics(page) {
         const source = String(listener).slice(0, 700);
         write({ kind: 'registered', capture, source });
         const wrapped = function (event) {
-          write({ kind: 'called-before', capture, formId: event.target?.id || '', defaultPrevented: event.defaultPrevented, source });
+          write({ kind: 'called-before', capture, formId: formId(event), defaultPrevented: event.defaultPrevented, source });
           try {
             return listener.call(this, event);
           } finally {
-            write({ kind: 'called-after', capture, formId: event.target?.id || '', defaultPrevented: event.defaultPrevented, source });
+            write({ kind: 'called-after', capture, formId: formId(event), defaultPrevented: event.defaultPrevented, source });
           }
         };
         return originalAdd.call(this, eventType, wrapped, options);
