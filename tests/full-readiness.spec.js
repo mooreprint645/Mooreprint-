@@ -86,6 +86,7 @@ test('las acciones principales actualizan su área y sus relaciones', async ({ p
   }));
   await page.goto(baseURL);
   await page.waitForFunction(() => document.documentElement.classList.contains('mooreprint-access-granted'));
+  await page.waitForFunction(() => document.querySelectorAll('#summaryChart .bar-item').length === 4);
   await expect(page.locator('#dashboard')).toHaveClass(/active/);
 
   // Cliente.
