@@ -1,9 +1,9 @@
-const CACHE_NAME = 'mooreprint-v29';
+const CACHE_NAME = 'mooreprint-v30';
 const APP_SHELL = [
   './', './index.html', './styles.css', './brand-theme.css', './advanced-features.css', './access-control.css', './supplier-catalog.css', './monthly-overhead.css', './branch-access.css', './usability.css', './mobile-fixes.css', './business-assistant.css',
-  './files-db.js', './local-protection.js', './pwa.js', './app-core.js', './app-render-main.js', './app-render-finance.js',
+  './files-db.js', './local-protection.js', './pwa.js', './accounting-math.js', './app-core.js', './app-render-main.js', './app-render-finance.js',
   './app-contacts.js', './app-catalog.js', './app-documents.js', './app-finance.js',
-  './app-tools.js', './advanced-fixes.js', './advanced-features.js', './performance-fixes.js', './team-workflow.js', './state-bridge.js', './granular-sync-guard.js', './team-improvements.js', './startup-query-limit.js', './select-innerhtml-stability.js', './team-operations.js', './team-operations-ui-guard.js', './team-hardening.js', './business-assistant.js', './supplier-catalog.js', './monthly-overhead.js', './branch-access.js', './catalog-cloud.js', './overhead-cloud.js', './usability.js', './mobile-fixes.js', './supabase-config.js', './supabase-cloud.js',
+  './app-tools.js', './advanced-fixes.js', './advanced-features.js', './performance-fixes.js', './team-workflow.js', './state-bridge.js', './granular-sync-guard.js', './team-improvements.js', './startup-query-limit.js', './select-innerhtml-stability.js', './team-operations.js', './team-operations-ui-guard.js', './team-hardening.js', './business-assistant.js', './accounting-integrity.js', './supplier-catalog.js', './monthly-overhead.js', './branch-access.js', './catalog-cloud.js', './overhead-cloud.js', './usability.js', './mobile-fixes.js', './supabase-config.js', './supabase-cloud.js',
   './app.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'
 ];
 
