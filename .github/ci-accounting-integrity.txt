@@ -1,0 +1,1 @@
+Validación temporal de integridad contable y cálculos conocidos.
