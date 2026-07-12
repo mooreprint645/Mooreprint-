@@ -1,0 +1,1 @@
+Validación final de MoorePrint antes de capturar datos reales y registrar pedidos.
