@@ -110,7 +110,14 @@ test('los scripts y estilos se cargan de forma estática y visible', async () =>
   }
   expect(app).not.toContain('loadScriptOnce');
   expect(app).not.toContain('loadStyleOnce');
-  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v34'");
+  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v35'");
+});
+
+test('los formularios usan el atributo id y no un control llamado id', async () => {
+  expect(app).toContain('function formIdentifier(form)');
+  expect(app).toContain("form?.getAttribute?.('id')");
+  expect(app).toContain('handlers[formIdentifier(event.target)]');
+  expect(app).not.toContain('handlers[event.target.id]');
 });
 
 test('los indicadores correctos no tapan formularios móviles', async () => {
@@ -128,7 +135,7 @@ test('un gasto recurrente activo aparece y genera el gasto del mes', async () =>
   expect(finance).toContain('El monto mensual debe ser mayor a cero.');
   expect(renderFinance).toContain('No hay coincidencias');
   expect(renderFinance).toContain('data-label="Concepto"');
-  expect(renderFinance).toContain('rows.length ? \'none\' : \'block\'');
+  expect(renderFinance).toContain("rows.length ? 'none' : 'block'");
 });
 
 test('el núcleo usa un solo motor contable', async () => {
@@ -213,7 +220,7 @@ test('la preparación CFDI conserva datos fiscales sin simular timbrado', async 
 
 test('la compatibilidad heredada queda aislada y no carga scripts', async () => {
   expect(selectStability).toContain('HTMLSelectElement');
-  expect(selectStability).not.toContain('createElement(\'script\')');
+  expect(selectStability).not.toContain("createElement('script')");
   expect(selectStability).not.toContain('accounting-cloud-sync.js');
   expect(stateBridge).toContain("Object.defineProperty(window, 'state'");
 });
