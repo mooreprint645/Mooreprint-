@@ -110,7 +110,7 @@ test('los scripts y estilos se cargan de forma estática y visible', async () =>
   }
   expect(app).not.toContain('loadScriptOnce');
   expect(app).not.toContain('loadStyleOnce');
-  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v33'");
+  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v34'");
 });
 
 test('los indicadores correctos no tapan formularios móviles', async () => {
@@ -118,6 +118,17 @@ test('los indicadores correctos no tapan formularios móviles', async () => {
   expect(mobileFixes).toContain('#modalBackdrop:not([hidden])~.team-connection-pill');
   expect(mobileFixes).toContain('#modalBackdrop:not([hidden])~.team-pending-queue');
   expect(mobileFixes).toContain('right:auto!important');
+});
+
+test('un gasto recurrente activo aparece y genera el gasto del mes', async () => {
+  expect(finance).toContain('function recurringExpenseForMonth');
+  expect(finance).toContain('recurringId: item.id');
+  expect(finance).toContain('queueGeneratedRecurringExpenses([generated])');
+  expect(finance).toContain("navigate('recurring')");
+  expect(finance).toContain('El monto mensual debe ser mayor a cero.');
+  expect(renderFinance).toContain('No hay coincidencias');
+  expect(renderFinance).toContain('data-label="Concepto"');
+  expect(renderFinance).toContain('rows.length ? \'none\' : \'block\'');
 });
 
 test('el núcleo usa un solo motor contable', async () => {
