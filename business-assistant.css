@@ -1,0 +1,200 @@
+.notification-button {
+  position: relative;
+  min-width: 42px;
+  padding-inline: 12px;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: grid;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  place-items: center;
+  border: 2px solid #050505;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.notification-badge[hidden] { display: none; }
+
+.assistant-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.assistant-summary .metric-card { min-height: 112px; }
+
+.assistant-list {
+  display: grid;
+  gap: 10px;
+}
+
+.assistant-alert {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--border, #353535);
+  border-radius: 14px;
+  background: rgba(255,255,255,.025);
+  color: inherit;
+  text-align: left;
+}
+
+button.assistant-alert { cursor: pointer; }
+button.assistant-alert:hover { border-color: #f5c010; }
+.assistant-alert.danger { border-color: rgba(239,68,68,.58); }
+.assistant-alert.warning { border-color: rgba(245,192,16,.5); }
+.assistant-alert.info { border-color: rgba(59,130,246,.45); }
+.assistant-alert .assistant-icon { font-size: 24px; }
+.assistant-alert strong { display: block; margin-bottom: 4px; }
+.assistant-alert small { display: block; color: #aaa; line-height: 1.4; }
+.assistant-alert .assistant-arrow { font-size: 22px; color: #888; }
+
+.notification-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.notification-settings label,
+.cfdi-settings-grid label {
+  display: grid;
+  gap: 7px;
+}
+
+.notification-toggle {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #353535);
+  border-radius: 12px;
+}
+
+.notification-toggle input { width: 18px; height: 18px; }
+
+.help-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.help-card {
+  border: 1px solid var(--border, #353535);
+  border-radius: 16px;
+  background: rgba(255,255,255,.025);
+  overflow: hidden;
+}
+
+.help-card summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.help-card summary::marker { color: #f5c010; }
+.help-card-content { padding: 0 16px 16px; color: #c8c8c3; }
+.help-card-content ol { margin: 10px 0 14px 20px; padding: 0; }
+.help-card-content li { margin: 7px 0; line-height: 1.45; }
+
+.cfdi-notice {
+  padding: 14px;
+  border: 1px solid rgba(245,192,16,.55);
+  border-radius: 14px;
+  background: rgba(245,192,16,.07);
+  color: #eee;
+  line-height: 1.5;
+}
+
+.cfdi-notice strong { color: #f5c010; }
+
+.cfdi-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cfdi-settings-grid .full { grid-column: 1 / -1; }
+
+.cfdi-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #333;
+  color: #ddd;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.cfdi-status.preparado { background: rgba(59,130,246,.16); color: #93c5fd; }
+.cfdi-status.enviado { background: rgba(245,192,16,.15); color: #f4d45f; }
+.cfdi-status.timbrado { background: rgba(52,211,153,.15); color: #86efac; }
+.cfdi-status.cancelado { background: rgba(239,68,68,.15); color: #fca5a5; }
+
+.cfdi-missing {
+  display: block;
+  margin-top: 5px;
+  color: #fca5a5;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.cfdi-concepts {
+  display: grid;
+  gap: 10px;
+}
+
+.cfdi-concept {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(100px, .7fr));
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--border, #353535);
+  border-radius: 12px;
+}
+
+.cfdi-concept .concept-copy strong,
+.cfdi-concept .concept-copy small { display: block; }
+.cfdi-concept .concept-copy small { margin-top: 4px; color: #aaa; }
+
+.assistant-empty {
+  padding: 24px;
+  text-align: center;
+  color: #999;
+}
+
+@media (max-width: 900px) {
+  .assistant-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .help-grid { grid-template-columns: 1fr; }
+  .cfdi-concept { grid-template-columns: 1fr 1fr; }
+  .cfdi-concept .concept-copy { grid-column: 1 / -1; }
+}
+
+@media (max-width: 640px) {
+  .assistant-summary,
+  .notification-settings,
+  .cfdi-settings-grid { grid-template-columns: 1fr; }
+  .cfdi-settings-grid .full { grid-column: auto; }
+  .cfdi-concept { grid-template-columns: 1fr; }
+  .cfdi-concept .concept-copy { grid-column: auto; }
+  .notification-button .notification-label { display: none; }
+}
