@@ -4,7 +4,7 @@ const fs = require('fs');
 const sql = fs.readFileSync('supabase/team-hardening.sql', 'utf8');
 const productionSql = fs.readFileSync('supabase/team-hardening-production.sql', 'utf8');
 const hardening = fs.readFileSync('team-hardening.js', 'utf8');
-const loader = fs.readFileSync('select-innerhtml-stability.js', 'utf8');
+const html = fs.readFileSync('index.html', 'utf8');
 const sw = fs.readFileSync('sw.js', 'utf8');
 
 test('los módulos operativos tienen permisos separados', async () => {
@@ -74,8 +74,8 @@ test('el SQL de producción conserva los bloques aplicados desde móvil', async 
   expect(productionSql).toContain("notify pgrst,'reload schema'");
 });
 
-test('la caché carga la protección avanzada', async () => {
-  expect(loader).toContain("'team-hardening.js'");
+test('la protección avanzada se carga directamente y queda en caché', async () => {
+  expect(html).toContain('<script src="team-hardening.js"></script>');
   expect(sw).toContain("'./team-hardening.js'");
-  expect(sw).toContain("CACHE_NAME = 'mooreprint-v31'");
+  expect(sw).toContain("CACHE_NAME = 'mooreprint-v32'");
 });
