@@ -39,12 +39,23 @@
     }
   }
 
+  function loadPurchasePackageSupport() {
+    if (document.querySelector('script[data-purchase-packages]')) return;
+    const script = document.createElement('script');
+    script.src = './purchase-packages.js';
+    script.async = false;
+    script.dataset.purchasePackages = 'true';
+    script.addEventListener('error', () => console.warn('No se pudo cargar el soporte de compras por caja.'));
+    document.head.appendChild(script);
+  }
+
   function init() {
     if (initialized) return;
     initialized = true;
     installButton()?.addEventListener('click', installApp);
     refreshInstallButton();
     registerServiceWorker();
+    loadPurchasePackageSupport();
   }
 
   window.addEventListener('beforeinstallprompt', event => {
