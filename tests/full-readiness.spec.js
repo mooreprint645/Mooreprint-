@@ -33,6 +33,43 @@ function type(file) {
   return ({ '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png' })[path.extname(file)] || 'application/octet-stream';
 }
 
+async function installDiagnostics(page) {
+  await page.addInitScript(() => {
+    const key = '__mooreprintSubmitDiagnostics';
+    const read = () => {
+      try { return JSON.parse(sessionStorage.getItem(key) || '[]'); }
+      catch (error) { return []; }
+    };
+    const write = entry => {
+      const rows = read();
+      rows.push({ time: Date.now(), ...entry });
+      sessionStorage.setItem(key, JSON.stringify(rows.slice(-100)));
+    };
+    window.__readSubmitDiagnostics = read;
+    window.addEventListener('error', event => write({ kind: 'page-error', message: event.message || String(event.error || '') }));
+    window.addEventListener('unhandledrejection', event => write({ kind: 'rejection', message: String(event.reason?.stack || event.reason || '') }));
+
+    const originalAdd = EventTarget.prototype.addEventListener;
+    EventTarget.prototype.addEventListener = function (eventType, listener, options) {
+      if (this === document && eventType === 'submit' && typeof listener === 'function') {
+        const capture = options === true || Boolean(options && options.capture);
+        const source = String(listener).slice(0, 700);
+        write({ kind: 'registered', capture, source });
+        const wrapped = function (event) {
+          write({ kind: 'called-before', capture, formId: event.target?.id || '', defaultPrevented: event.defaultPrevented, source });
+          try {
+            return listener.call(this, event);
+          } finally {
+            write({ kind: 'called-after', capture, formId: event.target?.id || '', defaultPrevented: event.defaultPrevented, source });
+          }
+        };
+        return originalAdd.call(this, eventType, wrapped, options);
+      }
+      return originalAdd.call(this, eventType, listener, options);
+    };
+  });
+}
+
 async function openApp(page) {
   await page.route('https://cdn.jsdelivr.net/**', route => route.fulfill({ status: 200, contentType: 'application/javascript', body: 'window.supabase={createClient(){return {};}};' }));
   await page.goto(baseURL);
@@ -42,11 +79,6 @@ async function openApp(page) {
 async function go(page, section) {
   await page.evaluate(name => window.navigate(name), section);
   await expect(page.locator(`#${section}`)).toHaveClass(/active/);
-}
-
-async function saveForm(page, formId) {
-  await page.locator(`button[form="${formId}"]`).click({ force: true });
-  await expect(page.locator('#modalBackdrop')).toBeHidden();
 }
 
 test.beforeAll(async () => {
@@ -75,13 +107,27 @@ test.afterAll(async () => {
   await new Promise(resolve => server.close(resolve));
 });
 
-test('el botón Guardar cliente ejecuta el guardado y actualiza la lista', async ({ page }) => {
+test('el guardado de cliente registra y ejecuta el manejador de formulario', async ({ page }) => {
+  await installDiagnostics(page);
   await openApp(page);
+
+  const registered = await page.evaluate(() => window.__readSubmitDiagnostics());
+  console.log('DIAGNÓSTICO ANTES:', JSON.stringify(registered));
+  expect(registered.some(row => row.kind === 'registered' && row.capture === false && row.source.includes('customerForm: saveCustomer'))).toBe(true);
+  expect(registered.filter(row => row.kind === 'page-error' || row.kind === 'rejection')).toEqual([]);
+
   await go(page, 'customers');
   await page.locator('#newCustomerButton').click({ force: true });
   await page.locator('#customerForm [name="name"]').fill('Cliente de prueba');
   await page.locator('#customerForm [name="phone"]').fill('7220000000');
-  await saveForm(page, 'customerForm');
+  const originalURL = page.url();
+  await page.locator('button[form="customerForm"]').click({ force: true });
+  await page.waitForTimeout(500);
+
+  const diagnostics = await page.evaluate(() => window.__readSubmitDiagnostics());
+  console.log('DIAGNÓSTICO DESPUÉS:', JSON.stringify(diagnostics));
+  expect(diagnostics.some(row => row.kind === 'called-before' && row.formId === 'customerForm' && row.capture === false)).toBe(true);
+  expect(diagnostics.some(row => row.kind === 'called-after' && row.formId === 'customerForm' && row.capture === false && row.defaultPrevented === true)).toBe(true);
+  expect(page.url()).toBe(originalURL);
   await expect(page.locator('#customersGrid')).toContainText('Cliente de prueba');
-  await expect(page).toHaveURL(baseURL + '/');
 });
