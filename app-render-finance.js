@@ -35,9 +35,27 @@ function renderExpenses() {
 
 function renderRecurring() {
   const query = ($('#recurringSearch')?.value || '').trim().toLowerCase();
-  const rows = state.recurringExpenses.filter(item => `${item.name} ${categoryName(item.category)}`.toLowerCase().includes(query));
-  $('#recurringEmpty').style.display = state.recurringExpenses.length ? 'none' : 'block';
-  $('#recurringTable').innerHTML = rows.map(item => `<tr><td><strong>${esc(item.name)}</strong><br><small>${esc(item.notes || '')}</small>${item.includedInPricing ? '<br><small>Incluido en costos de producto</small>' : ''}</td><td>${categoryName(item.category)}</td><td>${money(item.amount)}</td><td>Día ${num(item.day)}</td><td>${methodName(item.method)}</td><td><span class="badge ${item.active === false ? 'inactivo' : 'activo'}">${item.active === false ? 'Inactivo' : 'Activo'}</span></td><td>${esc(item.lastGeneratedMonth || 'Nunca')}</td><td><div class="action-group"><button class="action-button" data-toggle-recurring="${item.id}">${item.active === false ? '▶' : 'Ⅱ'}</button><button class="action-button" data-edit-recurring="${item.id}">✎</button><button class="action-button" data-delete-recurring="${item.id}">×</button></div></td></tr>`).join('');
+  const rows = [...state.recurringExpenses]
+    .filter(item => `${item.name} ${categoryName(item.category)} ${methodName(item.method)}`.toLowerCase().includes(query))
+    .sort((a, b) => Number(b.active !== false) - Number(a.active !== false) || num(a.day) - num(b.day) || String(a.name).localeCompare(String(b.name), 'es'));
+  const empty = $('#recurringEmpty');
+  empty.style.display = rows.length ? 'none' : 'block';
+  if (!rows.length) {
+    empty.querySelector('h3').textContent = query ? 'No hay coincidencias' : 'No hay gastos recurrentes';
+    empty.querySelector('p').textContent = query
+      ? 'Borra o cambia la búsqueda para ver los gastos guardados.'
+      : 'Programa renta, luz, internet, sueldos y suscripciones mensuales.';
+  }
+  $('#recurringTable').innerHTML = rows.map(item => `<tr>
+    <td data-label="Concepto"><strong>${esc(item.name)}</strong><br><small>${esc(item.notes || '')}</small>${item.includedInPricing ? '<br><small>Incluido en costos de producto</small>' : ''}</td>
+    <td data-label="Categoría">${categoryName(item.category)}</td>
+    <td data-label="Monto">${money(item.amount)}</td>
+    <td data-label="Día de pago">Día ${num(item.day)}</td>
+    <td data-label="Método">${methodName(item.method)}</td>
+    <td data-label="Estado"><span class="badge ${item.active === false ? 'inactivo' : 'activo'}">${item.active === false ? 'Inactivo' : 'Activo'}</span></td>
+    <td data-label="Última generación">${esc(item.lastGeneratedMonth || 'Nunca')}</td>
+    <td data-label="Acciones"><div class="action-group"><button class="action-button" data-toggle-recurring="${item.id}">${item.active === false ? '▶' : 'Ⅱ'}</button><button class="action-button" data-edit-recurring="${item.id}">✎</button><button class="action-button" data-delete-recurring="${item.id}">×</button></div></td>
+  </tr>`).join('');
 }
 
 function renderCashMethodBreakdown() {
