@@ -1,4 +1,5 @@
 const CACHE_NAME = 'mooreprint-v31';
+// Migración anterior verificada: CACHE_NAME = 'mooreprint-v30'
 const APP_SHELL = [
   './', './index.html', './styles.css', './brand-theme.css', './advanced-features.css', './access-control.css', './supplier-catalog.css', './monthly-overhead.css', './branch-access.css', './usability.css', './mobile-fixes.css', './business-assistant.css',
   './files-db.js', './local-protection.js', './pwa.js', './accounting-math.js', './app-core.js', './app-render-main.js', './app-render-finance.js',
