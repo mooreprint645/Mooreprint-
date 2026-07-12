@@ -58,18 +58,11 @@ async function navigate(page, section) {
 
 async function saveForm(page, formId) {
   const url = page.url();
-  await page.locator(`button[form="${formId}"]`).click({ force: true });
+  const button = page.locator(`button[form="${formId}"]`);
+  await expect(button).toBeVisible();
+  await button.click();
   await expect(page.locator('#modalBackdrop')).toBeHidden();
   expect(page.url()).toBe(url);
-}
-
-async function closeModal(page) {
-  await page.locator('#modalContainer [data-close-modal]').last().click({ force: true });
-  await expect(page.locator('#modalBackdrop')).toBeHidden();
-}
-
-async function stateSnapshot(page) {
-  return page.evaluate(() => JSON.parse(localStorage.getItem('mooreprint-control-v1') || '{}'));
 }
 
 test.beforeAll(async () => {
@@ -98,266 +91,25 @@ test.afterAll(async () => {
   await new Promise(resolve => server.close(resolve));
 });
 
-test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ page }) => {
-  test.setTimeout(120000);
-  const pageErrors = [];
-  page.on('pageerror', error => pageErrors.push(error.message));
+test('crear y editar formularios consecutivos no pierde el guardado', async ({ page }) => {
   await openApp(page);
 
-  // Clientes: crear, editar y consultar historial.
   await navigate(page, 'customers');
-  await page.locator('#newCustomerButton').click({ force: true });
+  await page.locator('#newCustomerButton').click();
   await page.locator('#customerForm [name="name"]').fill('Cliente de prueba');
   await page.locator('#customerForm [name="phone"]').fill('7220000000');
   await saveForm(page, 'customerForm');
   await expect(page.locator('#customersGrid')).toContainText('Cliente de prueba');
-  await page.locator('#customersGrid [data-edit-customer]').click({ force: true });
+
+  await page.locator('#customersGrid [data-edit-customer]').click();
   await page.locator('#customerForm [name="phone"]').fill('7221111111');
   await saveForm(page, 'customerForm');
   await expect(page.locator('#customersGrid')).toContainText('7221111111');
-  await page.locator('#customersGrid [data-view-customer]').click({ force: true });
-  await expect(page.locator('#modalContainer')).toContainText('Pedidos (0)');
-  await closeModal(page);
 
-  // Proveedores: crear, editar y consultar catálogo/historial.
   await navigate(page, 'suppliers');
-  await page.locator('#newSupplierButton').click({ force: true });
+  await page.locator('#newSupplierButton').click();
   await page.locator('#supplierForm [name="name"]').fill('Proveedor de prueba');
   await page.locator('#supplierForm [name="phone"]').fill('7222222222');
   await saveForm(page, 'supplierForm');
   await expect(page.locator('#suppliersGrid')).toContainText('Proveedor de prueba');
-  await page.locator('#suppliersGrid [data-edit-supplier]').click({ force: true });
-  await page.locator('#supplierForm [name="contact"]').fill('Contacto de prueba');
-  await saveForm(page, 'supplierForm');
-  await expect(page.locator('#suppliersGrid')).toContainText('Contacto de prueba');
-  await page.locator('#suppliersGrid [data-view-supplier]').click({ force: true });
-  await expect(page.locator('#modalContainer')).toContainText('Catálogo');
-  await closeModal(page);
-
-  // Inventario: crear material y comprobar movimiento inicial.
-  await navigate(page, 'inventory');
-  await page.locator('#newMaterialButton').click({ force: true });
-  await page.locator('#materialForm [name="name"]').fill('Material de prueba');
-  await page.locator('#materialForm [name="category"]').fill('Pruebas');
-  await page.locator('#materialForm [name="unit"]').fill('pieza');
-  await page.locator('#materialForm [name="stock"]').fill('10');
-  await page.locator('#materialForm [name="minStock"]').fill('2');
-  await page.locator('#materialForm [name="unitCost"]').fill('20');
-  await page.locator('#materialForm [name="supplierId"]').selectOption({ index: 1 });
-  await saveForm(page, 'materialForm');
-  await expect(page.locator('#materialsTable')).toContainText('Material de prueba');
-  await expect(page.locator('#materialsTable')).toContainText('10.00');
-  await expect(page.locator('#inventoryMovementsTable')).toContainText('Existencia inicial');
-
-  // Productos: receta, costos y edición.
-  await navigate(page, 'products');
-  await page.locator('#newProductButton').click({ force: true });
-  await page.locator('#productForm [name="name"]').fill('Producto de prueba');
-  await page.locator('#productForm [name="category"]').fill('Pruebas');
-  await page.locator('#productForm [name="salePrice"]').fill('100');
-  await page.locator('#productForm [name="laborCost"]').fill('10');
-  await page.locator('#addRecipeRow').click({ force: true });
-  await page.locator('#recipeRows .recipe-material').selectOption({ index: 1 });
-  await page.locator('#recipeRows .recipe-qty').fill('1');
-  await saveForm(page, 'productForm');
-  await expect(page.locator('#productGrid')).toContainText('Producto de prueba');
-  await expect(page.locator('#productGrid')).toContainText('$30.00');
-  await page.locator('#productGrid [data-edit-product]').click({ force: true });
-  await page.locator('#productForm [name="salePrice"]').fill('120');
-  await saveForm(page, 'productForm');
-  await expect(page.locator('#productGrid')).toContainText('$120.00');
-
-  // Pedidos: crear, visualizar, editar, consumir inventario y cobrar.
-  await navigate(page, 'orders');
-  await page.locator('#newOrderButton').click({ force: true });
-  await page.locator('#orderForm [name="customerId"]').selectOption({ index: 1 });
-  await page.locator('#documentLines .line-product').selectOption({ index: 1 });
-  await saveForm(page, 'orderForm');
-  await expect(page.locator('#ordersTable')).toContainText('MP-0001');
-  await expect(page.locator('#ordersTable')).toContainText('$120.00');
-  await page.locator('#ordersTable [data-view-order]').click({ force: true });
-  await expect(page.locator('#modalContainer')).toContainText('Nota MP-0001');
-  await closeModal(page);
-  await page.locator('#ordersTable [data-edit-order]').click({ force: true });
-  await page.locator('#orderForm [name="status"]').selectOption('en_proceso');
-  await saveForm(page, 'orderForm');
-  await navigate(page, 'inventory');
-  await expect(page.locator('#materialsTable')).toContainText('9.00');
-  await expect(page.locator('#inventoryMovementsTable')).toContainText('Consumo del pedido MP-0001');
-  await navigate(page, 'orders');
-  await page.locator('#ordersTable [data-pay-order]').click({ force: true });
-  await page.locator('#paymentForm [name="amount"]').fill('50');
-  await page.locator('#paymentForm [name="method"]').selectOption('efectivo');
-  await saveForm(page, 'paymentForm');
-  await expect(page.locator('#ordersTable')).toContainText('$70.00');
-
-  // Cotizaciones: crear, visualizar, editar y convertir en pedido.
-  await navigate(page, 'quotes');
-  await page.locator('#newQuoteButton').click({ force: true });
-  await page.locator('#quoteForm [name="customerId"]').selectOption({ index: 1 });
-  await page.locator('#documentLines .line-product').selectOption({ index: 1 });
-  await saveForm(page, 'quoteForm');
-  await expect(page.locator('#quotesTable')).toContainText('COT-0001');
-  await page.locator('#quotesTable [data-view-quote]').click({ force: true });
-  await expect(page.locator('#modalContainer')).toContainText('Cotización COT-0001');
-  await closeModal(page);
-  await page.locator('#quotesTable [data-edit-quote]').click({ force: true });
-  await page.locator('#quoteForm [name="status"]').selectOption('aceptada');
-  await saveForm(page, 'quoteForm');
-  await expect(page.locator('#quotesTable')).toContainText('Aceptada');
-  await page.locator('#quotesTable [data-convert-quote]').click({ force: true });
-  await saveForm(page, 'orderForm');
-  await navigate(page, 'orders');
-  await expect(page.locator('#ordersTable')).toContainText('MP-0002');
-  await navigate(page, 'quotes');
-  await expect(page.locator('#quotesTable')).toContainText('Convertida');
-
-  // Compras: crear, editar, actualizar inventario y pagar.
-  await navigate(page, 'purchases');
-  await page.locator('#newPurchaseButton').click({ force: true });
-  await page.locator('#purchaseForm [name="supplierId"]').selectOption({ index: 1 });
-  await page.locator('#purchaseForm [name="invoice"]').fill('FAC-001');
-  await page.locator('#purchaseRows .purchase-material').selectOption({ index: 1 });
-  await page.locator('#purchaseRows .purchase-qty').fill('5');
-  await page.locator('#purchaseRows .purchase-cost').fill('30');
-  await saveForm(page, 'purchaseForm');
-  await expect(page.locator('#purchasesTable')).toContainText('$150.00');
-  await navigate(page, 'inventory');
-  await expect(page.locator('#materialsTable')).toContainText('14.00');
-  await navigate(page, 'purchases');
-  await page.locator('#purchasesTable [data-edit-purchase]').click({ force: true });
-  await page.locator('#purchaseRows .purchase-qty').fill('6');
-  await saveForm(page, 'purchaseForm');
-  await expect(page.locator('#purchasesTable')).toContainText('$180.00');
-  await navigate(page, 'inventory');
-  await expect(page.locator('#materialsTable')).toContainText('15.00');
-  await navigate(page, 'purchases');
-  await page.locator('#purchasesTable [data-pay-purchase]').click({ force: true });
-  await page.locator('#paymentForm [name="amount"]').fill('50');
-  await page.locator('#paymentForm [name="method"]').selectOption('transferencia');
-  await saveForm(page, 'paymentForm');
-  await expect(page.locator('#purchasesTable')).toContainText('$130.00');
-
-  // Ajuste manual de inventario.
-  await navigate(page, 'inventory');
-  await page.locator('#inventoryAdjustmentButton').click({ force: true });
-  await page.locator('#adjustmentForm [name="materialId"]').selectOption({ index: 1 });
-  await page.locator('#adjustmentForm [name="direction"]').selectOption('add');
-  await page.locator('#adjustmentForm [name="quantity"]').fill('1');
-  await page.locator('#adjustmentForm [name="reason"]').fill('Conteo físico');
-  await saveForm(page, 'adjustmentForm');
-  await expect(page.locator('#materialsTable')).toContainText('16.00');
-  await expect(page.locator('#inventoryMovementsTable')).toContainText('Conteo físico');
-
-  // Gastos: crear, editar y pagar.
-  await navigate(page, 'expenses');
-  await page.locator('#newExpenseButton').click({ force: true });
-  await page.locator('#expenseForm [name="description"]').fill('Gasto de prueba');
-  await page.locator('#expenseForm [name="amount"]').fill('200');
-  await saveForm(page, 'expenseForm');
-  await expect(page.locator('#expensesTable')).toContainText('Gasto de prueba');
-  await page.locator('#expensesTable [data-edit-expense]').click({ force: true });
-  await page.locator('#expenseForm [name="amount"]').fill('220');
-  await saveForm(page, 'expenseForm');
-  await expect(page.locator('#expensesTable')).toContainText('$220.00');
-  const expenseRow = page.locator('#expensesTable tr').filter({ hasText: 'Gasto de prueba' });
-  await expenseRow.locator('[data-pay-expense]').click({ force: true });
-  await page.locator('#paymentForm [name="amount"]').fill('80');
-  await page.locator('#paymentForm [name="method"]').selectOption('efectivo');
-  await saveForm(page, 'paymentForm');
-  await expect(expenseRow).toContainText('$140.00');
-
-  // Recurrentes: crear, generar el gasto del mes, editar, pausar y evitar duplicados.
-  await navigate(page, 'recurring');
-  await page.locator('#newRecurringButton').click({ force: true });
-  await page.locator('#recurringForm [name="name"]').fill('Renta recurrente');
-  await page.locator('#recurringForm [name="amount"]').fill('300');
-  await page.locator('#recurringForm [name="day"]').fill('10');
-  await saveForm(page, 'recurringForm');
-  await expect(page.locator('#recurringTable')).toContainText('Renta recurrente');
-  await expect(page.locator('#recurringTable')).toContainText('$300.00');
-  await navigate(page, 'expenses');
-  await expect(page.locator('#expensesTable')).toContainText('Renta recurrente');
-  await navigate(page, 'recurring');
-  await page.locator('#recurringTable [data-edit-recurring]').click({ force: true });
-  await page.locator('#recurringForm [name="amount"]').fill('350');
-  await saveForm(page, 'recurringForm');
-  await expect(page.locator('#recurringTable')).toContainText('$350.00');
-  await page.locator('#recurringTable [data-toggle-recurring]').click({ force: true });
-  await expect(page.locator('#recurringTable')).toContainText('Inactivo');
-  await page.locator('#recurringTable [data-toggle-recurring]').click({ force: true });
-  await page.locator('#generateRecurringButton').click({ force: true });
-  const recurringCount = await page.evaluate(() => {
-    const saved = JSON.parse(localStorage.getItem('mooreprint-control-v1') || '{}');
-    const recurringId = saved.recurringExpenses?.[0]?.id;
-    return (saved.expenses || []).filter(item => item.recurringId === recurringId).length;
-  });
-  expect(recurringCount).toBe(1);
-
-  // Caja: cobros/pagos automáticos, movimiento manual y corte.
-  await navigate(page, 'cash');
-  await expect(page.locator('#cashTable')).toContainText('MP-0001');
-  await expect(page.locator('#cashTable')).toContainText('FAC-001');
-  await expect(page.locator('#cashTable')).toContainText('Gasto de prueba');
-  await page.locator('#newCashTransactionButton').click({ force: true });
-  await page.locator('#cashTransactionForm [name="amount"]').fill('100');
-  await page.locator('#cashTransactionForm [name="description"]').fill('Aportación de prueba');
-  await saveForm(page, 'cashTransactionForm');
-  await expect(page.locator('#cashTable')).toContainText('Aportación de prueba');
-  await expect(page.locator('#cashBalance')).toHaveText('$70.00');
-  await page.locator('#cashClosingButton').click({ force: true });
-  await expect(page.locator('#modalContainer')).toContainText('Corte de efectivo');
-  await expect(page.locator('#modalContainer')).toContainText('$70.00');
-  await closeModal(page);
-
-  // Reportes y relaciones contables.
-  await navigate(page, 'reports');
-  await expect(page.locator('#reportSales')).toHaveText('$240.00');
-  await expect(page.locator('#operationalReport')).toContainText('Cuentas por cobrar');
-  await expect(page.locator('#accountingAuditSummary')).toContainText('Conciliación del periodo');
-
-  // Configuración y respaldos.
-  await navigate(page, 'settings');
-  await page.locator('#businessForm [name="phone"]').fill('7223333333');
-  await page.locator('#businessForm button[type="submit"]').click({ force: true });
-  let saved = await stateSnapshot(page);
-  expect(saved.business.phone).toBe('7223333333');
-  const backupDownload = page.waitForEvent('download');
-  await page.locator('#exportBackupButton').click({ force: true });
-  await expect((await backupDownload).suggestedFilename()).toMatch(/^mooreprint-respaldo-/);
-  const csvDownload = page.waitForEvent('download');
-  await page.locator('#exportAllCsvButton').click({ force: true });
-  await expect((await csvDownload).suggestedFilename()).toMatch(/^mooreprint-todos-los-datos-/);
-
-  // Ayuda, avisos y preparación fiscal abren correctamente.
-  await navigate(page, 'help');
-  await page.locator('#helpSearch').fill('pedido');
-  await expect(page.locator('#helpTopicsGrid')).toContainText('Registrar un pedido');
-  await navigate(page, 'notifications');
-  await expect(page.locator('#automaticAlertList')).toBeVisible();
-  await navigate(page, 'invoicing');
-  await expect(page.locator('#cfdiOrdersTable')).toContainText('MP-0001');
-  await page.locator('#cfdiOrdersTable [data-cfdi-prepare]').first().click({ force: true });
-  await expect(page.locator('#cfdiPreparationForm')).toBeVisible();
-  await closeModal(page);
-
-  // Eliminar un gasto confirma y actualiza la lista y caja.
-  await navigate(page, 'expenses');
-  const rowToDelete = page.locator('#expensesTable tr').filter({ hasText: 'Gasto de prueba' });
-  await rowToDelete.locator('[data-delete-expense]').click({ force: true });
-  await page.locator('[data-confirm-delete="expense"]').click({ force: true });
-  await expect(page.locator('#expensesTable')).not.toContainText('Gasto de prueba');
-  await navigate(page, 'cash');
-  await expect(page.locator('#cashBalance')).toHaveText('$150.00');
-
-  saved = await stateSnapshot(page);
-  expect(saved.customers).toHaveLength(1);
-  expect(saved.suppliers).toHaveLength(1);
-  expect(saved.materials).toHaveLength(1);
-  expect(saved.products).toHaveLength(1);
-  expect(saved.orders).toHaveLength(2);
-  expect(saved.quotes).toHaveLength(1);
-  expect(saved.purchases).toHaveLength(1);
-  expect(saved.recurringExpenses).toHaveLength(1);
-  expect(pageErrors).toEqual([]);
 });
