@@ -337,16 +337,61 @@ function savePayment(form) {
   saveState(data.recordType === 'order' ? 'Cobro registrado' : 'Pago registrado');
 }
 
+const CASH_MOVEMENT_KINDS = {
+  owner_contribution: {
+    type: 'entrada',
+    label: 'Aportación del propietario',
+    help: 'Dinero que tú agregas al negocio. Aumenta caja, pero no cuenta como venta ni utilidad.'
+  },
+  owner_withdrawal: {
+    type: 'salida',
+    label: 'Retiro del propietario',
+    help: 'Dinero que retiras para uso personal. Reduce caja, pero no cuenta como gasto de la imprenta.'
+  },
+  non_operating_expense: {
+    type: 'salida',
+    label: 'Gasto personal o no operativo',
+    help: 'Pago ajeno a la operación de la imprenta. Reduce caja sin modificar la utilidad del negocio.'
+  },
+  cash_adjustment_in: {
+    type: 'entrada',
+    label: 'Ajuste de caja a favor',
+    help: 'Corrección por dinero encontrado o diferencia positiva en el conteo.'
+  },
+  cash_adjustment_out: {
+    type: 'salida',
+    label: 'Ajuste de caja en contra',
+    help: 'Corrección por faltante o diferencia negativa en el conteo.'
+  },
+  other_income: {
+    type: 'entrada',
+    label: 'Otro ingreso no operativo',
+    help: 'Entrada que no corresponde a una venta de la imprenta.'
+  },
+  other_outflow: {
+    type: 'salida',
+    label: 'Otra salida no operativa',
+    help: 'Salida que no debe registrarse como gasto operativo de la imprenta.'
+  }
+};
+
+function cashMovementKindOptions(selected = 'owner_contribution') {
+  return Object.entries(CASH_MOVEMENT_KINDS)
+    .map(([value, item]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${item.label}</option>`)
+    .join('');
+}
+
 function openCashTransactionModal() {
   openModal(
-    'Movimiento manual de caja',
+    'Movimiento de caja no operativo',
     `<form id="cashTransactionForm" class="modal-form">
       <label>Fecha<input name="date" type="date" value="${todayISO()}" required></label>
-      <label>Tipo<select name="type"><option value="entrada">Entrada</option><option value="salida">Salida / retiro</option></select></label>
+      <label>Movimiento<select name="movementKind">${cashMovementKindOptions()}</select></label>
       <label>Monto<input name="amount" type="number" min="0.01" step="0.01" required></label>
       <label>Método<select name="method">${paymentMethodOptions('efectivo')}</select></label>
-      <label class="full">Descripción<input name="description" required placeholder="Aportación, retiro personal, ajuste..."></label>
-      <label class="full">Referencia<input name="reference"></label>
+      <label class="full">Motivo o detalle<input name="description" required placeholder="Explica para qué entró o salió el dinero"></label>
+      <label class="full">Referencia<input name="reference" placeholder="Opcional: recibo, transferencia o nota"></label>
+      <div class="info-box full"><strong>No altera la utilidad</strong><p>Estos movimientos cambian el saldo de caja o banco, pero no se suman a ventas ni a gastos operativos de la imprenta.</p></div>
     </form>`,
     `<button class="button secondary" data-close-modal>Cancelar</button><button class="button primary" form="cashTransactionForm">Guardar movimiento</button>`
   );
@@ -354,13 +399,30 @@ function openCashTransactionModal() {
 
 function saveCashTransaction(form) {
   const data = Object.fromEntries(new FormData(form));
+  const definition = CASH_MOVEMENT_KINDS[data.movementKind];
+  const amount = num(data.amount);
+  const detail = String(data.description || '').trim();
+  if (!definition) return showToast('Selecciona un tipo de movimiento válido.', 'error');
+  if (amount <= 0) return showToast('El monto debe ser mayor a cero.', 'error');
+  if (!detail) return showToast('Escribe el motivo del movimiento.', 'error');
+
   state.cashTransactions.push({
-    id: uid('cash'), date: data.date, type: data.type, amount: num(data.amount),
-    method: data.method, description: data.description.trim(), reference: data.reference.trim(),
+    id: uid('cash'),
+    date: data.date,
+    type: definition.type,
+    movementKind: data.movementKind,
+    movementLabel: definition.label,
+    amount,
+    method: data.method,
+    description: `${definition.label}: ${detail}`,
+    detail,
+    reference: String(data.reference || '').trim(),
+    affectsProfit: false,
+    affectsOperatingExpenses: false,
     createdAt: new Date().toISOString()
   });
   closeModal(true);
-  saveState('Movimiento de caja registrado');
+  saveState(`${definition.label} registrado`);
 }
 
 function openCashClosing() {
