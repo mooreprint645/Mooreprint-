@@ -108,7 +108,6 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   page.on('pageerror', error => pageErrors.push(error.message));
   await openApp(page);
 
-  // Clientes: crear, editar y consultar historial.
   await navigate(page, 'customers');
   await page.locator('#newCustomerButton').click();
   await page.locator('#customerForm [name="name"]').fill('Cliente de prueba');
@@ -123,7 +122,6 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await expect(page.locator('#modalContainer')).toContainText('Pedidos (0)');
   await closeModal(page);
 
-  // Proveedores: crear, editar y consultar catálogo/historial.
   await navigate(page, 'suppliers');
   await page.locator('#newSupplierButton').click();
   await page.locator('#supplierForm [name="name"]').fill('Proveedor de prueba');
@@ -138,7 +136,6 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await expect(page.locator('#modalContainer')).toContainText('Catálogo');
   await closeModal(page);
 
-  // Inventario: crear material y comprobar movimiento inicial.
   await navigate(page, 'inventory');
   await page.locator('#newMaterialButton').click();
   await page.locator('#materialForm [name="name"]').fill('Material de prueba');
@@ -153,7 +150,6 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await expect(page.locator('#materialsTable')).toContainText('10.00');
   await expect(page.locator('#inventoryMovementsTable')).toContainText('Existencia inicial');
 
-  // Productos: receta, costos y edición.
   await navigate(page, 'products');
   await page.locator('#newProductButton').click();
   await page.locator('#productForm [name="name"]').fill('Producto de prueba');
@@ -171,7 +167,6 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await saveForm(page, 'productForm');
   await expect(page.locator('#productGrid')).toContainText('$120.00');
 
-  // Pedidos: crear, visualizar, editar, consumir inventario y cobrar.
   await navigate(page, 'orders');
   await page.locator('#newOrderButton').click();
   await page.locator('#orderForm [name="customerId"]').selectOption({ index: 1 });
@@ -195,7 +190,6 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await saveForm(page, 'paymentForm');
   await expect(page.locator('#ordersTable')).toContainText('$70.00');
 
-  // Cotizaciones: crear, visualizar, editar y convertir en pedido.
   await navigate(page, 'quotes');
   await page.locator('#newQuoteButton').click();
   await page.locator('#quoteForm [name="customerId"]').selectOption({ index: 1 });
@@ -216,7 +210,6 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await navigate(page, 'quotes');
   await expect(page.locator('#quotesTable')).toContainText('Convertida');
 
-  // Compras: crear, editar, actualizar inventario y pagar.
   await navigate(page, 'purchases');
   await page.locator('#newPurchaseButton').click();
   await page.locator('#purchaseForm [name="supplierId"]').selectOption({ index: 1 });
@@ -242,7 +235,6 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await saveForm(page, 'paymentForm');
   await expect(page.locator('#purchasesTable')).toContainText('$130.00');
 
-  // Ajuste manual de inventario.
   await navigate(page, 'inventory');
   await page.locator('#inventoryAdjustmentButton').click();
   await page.locator('#adjustmentForm [name="materialId"]').selectOption({ index: 1 });
@@ -253,7 +245,6 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await expect(page.locator('#materialsTable')).toContainText('16.00');
   await expect(page.locator('#inventoryMovementsTable')).toContainText('Conteo físico');
 
-  // Gastos: crear, editar y pagar.
   await navigate(page, 'expenses');
   await page.locator('#newExpenseButton').click();
   await page.locator('#expenseForm [name="description"]').fill('Gasto de prueba');
@@ -269,9 +260,12 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await page.locator('#paymentForm [name="amount"]').fill('80');
   await page.locator('#paymentForm [name="method"]').selectOption('efectivo');
   await saveForm(page, 'paymentForm');
-  await expect(expenseRow).toContainText('$140.00');
+  await expect(expenseRow).toContainText('$80.00');
+  let saved = await stateSnapshot(page);
+  const savedExpense = saved.expenses.find(item => item.description === 'Gasto de prueba');
+  expect(savedExpense.amount).toBe(220);
+  expect(savedExpense.payments.reduce((total, payment) => total + Number(payment.amount || 0), 0)).toBe(80);
 
-  // Recurrentes: crear, generar el gasto del mes, editar, pausar y evitar duplicados.
   await navigate(page, 'recurring');
   await page.locator('#newRecurringButton').click();
   await page.locator('#recurringForm [name="name"]').fill('Renta recurrente');
@@ -292,13 +286,12 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await page.locator('#recurringTable [data-toggle-recurring]').click();
   await page.locator('#generateRecurringButton').click();
   const recurringCount = await page.evaluate(() => {
-    const saved = JSON.parse(localStorage.getItem('mooreprint-control-v1') || '{}');
-    const recurringId = saved.recurringExpenses?.[0]?.id;
-    return (saved.expenses || []).filter(item => item.recurringId === recurringId).length;
+    const current = JSON.parse(localStorage.getItem('mooreprint-control-v1') || '{}');
+    const recurringId = current.recurringExpenses?.[0]?.id;
+    return (current.expenses || []).filter(item => item.recurringId === recurringId).length;
   });
   expect(recurringCount).toBe(1);
 
-  // Caja: cobros/pagos automáticos, movimiento manual y corte.
   await navigate(page, 'cash');
   await expect(page.locator('#cashTable')).toContainText('MP-0001');
   await expect(page.locator('#cashTable')).toContainText('FAC-001');
@@ -314,17 +307,15 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await expect(page.locator('#modalContainer')).toContainText('$70.00');
   await closeModal(page);
 
-  // Reportes y relaciones contables.
   await navigate(page, 'reports');
   await expect(page.locator('#reportSales')).toHaveText('$240.00');
   await expect(page.locator('#operationalReport')).toContainText('Cuentas por cobrar');
   await expect(page.locator('#accountingAuditSummary')).toContainText('Conciliación del periodo');
 
-  // Configuración y respaldos.
   await navigate(page, 'settings');
   await page.locator('#businessForm [name="phone"]').fill('7223333333');
   await page.locator('#businessForm button[type="submit"]').click();
-  let saved = await stateSnapshot(page);
+  saved = await stateSnapshot(page);
   expect(saved.business.phone).toBe('7223333333');
   const backupDownload = page.waitForEvent('download');
   await page.locator('#exportBackupButton').click();
@@ -333,7 +324,6 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await page.locator('#exportAllCsvButton').click();
   await expect((await csvDownload).suggestedFilename()).toMatch(/^mooreprint-todos-los-datos-/);
 
-  // Ayuda, avisos y preparación fiscal abren correctamente.
   await navigate(page, 'help');
   await page.locator('#helpSearch').fill('pedido');
   await expect(page.locator('#helpTopicsGrid')).toContainText('Registrar un pedido');
@@ -345,7 +335,6 @@ test('cada acción principal guarda, actualiza y enlaza sus datos', async ({ pag
   await expect(page.locator('#cfdiPreparationForm')).toBeVisible();
   await closeModal(page);
 
-  // Eliminar un gasto confirma y actualiza la lista y caja.
   await navigate(page, 'expenses');
   const rowToDelete = page.locator('#expensesTable tr').filter({ hasText: 'Gasto de prueba' });
   await rowToDelete.locator('[data-delete-expense]').click();
