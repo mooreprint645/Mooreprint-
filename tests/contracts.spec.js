@@ -27,6 +27,7 @@ const renderFinance = fs.readFileSync('app-render-finance.js', 'utf8');
 const catalog = fs.readFileSync('app-catalog.js', 'utf8');
 const supplierCatalog = fs.readFileSync('supplier-catalog.js', 'utf8');
 const monthlyOverhead = fs.readFileSync('monthly-overhead.js', 'utf8');
+const mobileFixes = fs.readFileSync('mobile-fixes.css', 'utf8');
 
 test('las políticas usan permisos diferentes para ver, crear, editar y eliminar', async () => {
   for (const permission of [
@@ -109,7 +110,14 @@ test('los scripts y estilos se cargan de forma estática y visible', async () =>
   }
   expect(app).not.toContain('loadScriptOnce');
   expect(app).not.toContain('loadStyleOnce');
-  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v32'");
+  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v33'");
+});
+
+test('los indicadores correctos no tapan formularios móviles', async () => {
+  expect(mobileFixes).toContain('.team-pending-queue[data-count="0"]{display:none!important}');
+  expect(mobileFixes).toContain('#modalBackdrop:not([hidden])~.team-connection-pill');
+  expect(mobileFixes).toContain('#modalBackdrop:not([hidden])~.team-pending-queue');
+  expect(mobileFixes).toContain('right:auto!important');
 });
 
 test('el núcleo usa un solo motor contable', async () => {
