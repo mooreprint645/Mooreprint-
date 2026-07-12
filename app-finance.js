@@ -132,6 +132,72 @@ function saveExpense(form) {
   saveState(index >= 0 ? 'Gasto actualizado' : 'Gasto registrado');
 }
 
+function recurringBranchId() {
+  const context = window.MoorePrintBranches?.getContext?.() || {};
+  const selected = context.selectedBranchId || window.MoorePrintBranches?.getSelectedBranchId?.();
+  return selected && selected !== 'all' ? selected : context.branchId || '';
+}
+
+function recurringExpenseForMonth(item, key = monthKey(todayISO())) {
+  if (!item || item.active === false) return null;
+  const existing = state.expenses.find(expense => expense.recurringId === item.id && monthKey(expense.date) === key);
+  if (existing) {
+    item.lastGeneratedMonth = key;
+    return null;
+  }
+  const [year, month] = key.split('-').map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  const day = Math.min(lastDay, Math.max(1, num(item.day)));
+  const now = new Date().toISOString();
+  const expense = {
+    id: uid('expense'),
+    branchId: item.branchId || recurringBranchId(),
+    date: `${key}-01`,
+    dueDate: `${key}-${String(day).padStart(2, '0')}`,
+    category: item.category,
+    description: item.name,
+    amount: num(item.amount),
+    notes: item.notes || '',
+    recurringId: item.id,
+    includedInPricing: Boolean(item.includedInPricing),
+    payments: [],
+    createdAt: now,
+    updatedAt: now
+  };
+  state.expenses.push(expense);
+  item.lastGeneratedMonth = key;
+  return expense;
+}
+
+function queueGeneratedRecurringExpenses(expenses) {
+  const rows = (expenses || []).filter(Boolean);
+  if (!rows.length) return;
+  const branchId = rows[0].branchId || recurringBranchId();
+  const operations = rows.map(expense => ({
+    kind: 'record_upsert',
+    action: 'save',
+    entity_type: 'expense',
+    entity_id: expense.id,
+    branch_id: expense.branchId || branchId,
+    payload: clone(expense),
+    occurred_on: expense.date,
+    expected_version: expense.cloudVersion || null,
+    created_at: expense.createdAt
+  }));
+  const sync = () => {
+    if (window.MoorePrintHardening?.isReady?.()) {
+      window.MoorePrintHardening.enqueue('Generar gastos recurrentes', operations, branchId);
+      return true;
+    }
+    if (window.MoorePrintOperations?.sync) {
+      window.MoorePrintOperations.sync(['recurring_expense', 'expense']);
+      return true;
+    }
+    return false;
+  };
+  if (!sync()) setTimeout(sync, 900);
+}
+
 function openRecurringModal(id = '') {
   const item = state.recurringExpenses.find(row => row.id === id) || {
     id: uid('recurring'), name: '', category: 'servicios', amount: 0,
@@ -143,7 +209,7 @@ function openRecurringModal(id = '') {
       <input type="hidden" name="id" value="${item.id}">
       <label>Concepto<input name="name" value="${esc(item.name)}" required></label>
       <label>Categoría<select name="category">${expenseCategoryOptions(item.category)}</select></label>
-      <label>Monto mensual<input name="amount" type="number" min="0" step="0.01" value="${num(item.amount)}" required></label>
+      <label>Monto mensual<input name="amount" type="number" min="0.01" step="0.01" value="${num(item.amount)}" required></label>
       <label>Día de pago<input name="day" type="number" min="1" max="31" value="${num(item.day) || 1}" required></label>
       <label>Método habitual<select name="method">${paymentMethodOptions(item.method)}</select></label>
       <label>Estado<select name="active"><option value="true" ${item.active !== false ? 'selected' : ''}>Activo</option><option value="false" ${item.active === false ? 'selected' : ''}>Inactivo</option></select></label>
@@ -156,52 +222,58 @@ function openRecurringModal(id = '') {
 
 function saveRecurring(form) {
   const data = Object.fromEntries(new FormData(form));
+  const name = String(data.name || '').trim();
+  const amount = num(data.amount);
+  if (!name) return showToast('Escribe el concepto del gasto recurrente.', 'error');
+  if (amount <= 0) return showToast('El monto mensual debe ser mayor a cero.', 'error');
+
   const old = state.recurringExpenses.find(item => item.id === data.id);
+  const now = new Date().toISOString();
   const item = {
     id: data.id,
-    name: data.name.trim(),
+    branchId: old?.branchId || recurringBranchId(),
+    name,
     category: data.category,
-    amount: num(data.amount),
+    amount,
     day: Math.min(31, Math.max(1, num(data.day))),
     method: data.method,
     active: data.active === 'true',
-    notes: data.notes.trim(),
+    notes: String(data.notes || '').trim(),
     includedInPricing: Boolean(form.elements.includedInPricing?.checked),
     lastGeneratedMonth: old?.lastGeneratedMonth || '',
-    updatedAt: new Date().toISOString()
+    updatedAt: now
   };
   const index = state.recurringExpenses.findIndex(row => row.id === item.id);
   if (index >= 0) state.recurringExpenses[index] = { ...state.recurringExpenses[index], ...item };
-  else state.recurringExpenses.push({ ...item, createdAt: new Date().toISOString() });
+  else state.recurringExpenses.push({ ...item, createdAt: now });
+
+  const saved = state.recurringExpenses.find(row => row.id === item.id);
+  const generated = recurringExpenseForMonth(saved);
+  const search = $('#recurringSearch');
+  if (search) search.value = '';
   closeModal(true);
-  saveState(index >= 0 ? 'Gasto recurrente actualizado' : 'Gasto recurrente agregado');
+  saveState(generated
+    ? `${index >= 0 ? 'Gasto recurrente actualizado' : 'Gasto recurrente agregado'} y gasto del mes generado`
+    : index >= 0 ? 'Gasto recurrente actualizado' : 'Gasto recurrente agregado');
+  navigate('recurring');
+  queueGeneratedRecurringExpenses([generated]);
 }
 
 function generateRecurringExpenses(showMessage = true) {
   const key = monthKey(todayISO());
-  const [year, month] = key.split('-').map(Number);
-  let generated = 0;
-  state.recurringExpenses.filter(item => item.active !== false).forEach(item => {
-    const exists = state.expenses.some(expense => expense.recurringId === item.id && monthKey(expense.date) === key);
-    if (exists) {
-      item.lastGeneratedMonth = key;
-      return;
-    }
-    const lastDay = new Date(year, month, 0).getDate();
-    const day = Math.min(lastDay, Math.max(1, num(item.day)));
-    const dueDate = `${key}-${String(day).padStart(2, '0')}`;
-    state.expenses.push({
-      id: uid('expense'), date: `${key}-01`, dueDate, category: item.category,
-      description: item.name, amount: num(item.amount), notes: item.notes || '',
-      recurringId: item.id, includedInPricing: Boolean(item.includedInPricing),
-      payments: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
-    });
-    item.lastGeneratedMonth = key;
-    generated += 1;
-  });
+  const generatedExpenses = state.recurringExpenses
+    .filter(item => item.active !== false)
+    .map(item => recurringExpenseForMonth(item, key))
+    .filter(Boolean);
   persistState();
   renderAll();
-  if (showMessage) showToast(generated ? `${generated} gasto${generated === 1 ? '' : 's'} generado${generated === 1 ? '' : 's'}` : 'Los gastos del mes ya estaban generados');
+  queueGeneratedRecurringExpenses(generatedExpenses);
+  if (showMessage) {
+    const generated = generatedExpenses.length;
+    showToast(generated
+      ? `${generated} gasto${generated === 1 ? '' : 's'} generado${generated === 1 ? '' : 's'}`
+      : 'Los gastos del mes ya estaban generados');
+  }
 }
 
 function recordForPayment(type, id) {
