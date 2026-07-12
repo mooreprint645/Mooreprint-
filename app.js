@@ -50,6 +50,9 @@ async function loadAdvancedFeatures() {
   await loadScriptOnce('select-innerhtml-stability.js');
   await loadScriptOnce('team-operations.js');
   window.MoorePrintOperations?.init?.();
+  loadStyleOnce('business-assistant.css');
+  await loadScriptOnce('business-assistant.js');
+  window.MoorePrintBusinessAssistant?.init?.();
 }
 
 async function loadSupabaseCloud() {
