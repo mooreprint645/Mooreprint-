@@ -1,0 +1,1 @@
+Validación final de MoorePrint antes de pruebas manuales de usuario y administrador.
