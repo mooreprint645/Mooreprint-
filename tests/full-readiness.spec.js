@@ -88,6 +88,7 @@ test('las acciones principales actualizan su área y sus relaciones', async ({ p
   await expect(page.locator('#dashboard')).toHaveClass(/active/);
 
   // Cliente.
+  await navigate(page, 'customers');
   await page.locator('#newCustomerButton').click({ force: true });
   await page.locator('#customerForm [name="name"]').fill('Cliente de prueba');
   await page.locator('#customerForm [name="phone"]').fill('7220000000');
