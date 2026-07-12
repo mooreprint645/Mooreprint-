@@ -12,7 +12,7 @@ const stubScripts = {
   'advanced-fixes.js': 'window.MoorePrintAdvanced={init(){}};',
   'advanced-features.js': '',
   'performance-fixes.js': 'window.MoorePrintPerformance={init(){}};',
-  'supabase-cloud.js': 'window.MoorePrintCloud={init:async()=>{},hasAccess:()=>true,getClient:()=>null};',
+  'supabase-cloud.js': 'document.documentElement.classList.add("mooreprint-auth-ui-ready","mooreprint-access-granted");window.MoorePrintCloud={init:async()=>{},hasAccess:()=>true,getClient:()=>null};',
   'team-workflow.js': 'window.MoorePrintTeamWorkflow={init(){}};',
   'state-bridge.js': '',
   'granular-sync-guard.js': 'window.MoorePrintGranularSync={install(){}};',
@@ -85,6 +85,7 @@ test('las acciones principales actualizan su área y sus relaciones', async ({ p
     body: 'window.supabase={createClient(){return {};}};'
   }));
   await page.goto(baseURL);
+  await page.waitForFunction(() => document.documentElement.classList.contains('mooreprint-access-granted'));
   await expect(page.locator('#dashboard')).toHaveClass(/active/);
 
   // Cliente.
