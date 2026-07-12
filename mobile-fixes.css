@@ -147,6 +147,27 @@ html.ux-compact .line-row.payment,
 html.ux-compact .line-row.purchase{grid-template-columns:1fr 1fr!important}
 html.ux-compact .line-row>:first-child{grid-column:1/-1}
 
+/* Los estados correctos no deben ocupar toda la pantalla. */
+.team-pending-queue[data-count="0"]{display:none!important}
+html.ux-compact .team-connection-pill{
+  left:12px!important;
+  right:auto!important;
+  bottom:calc(76px + env(safe-area-inset-bottom))!important;
+  width:auto!important;
+  max-width:calc(100vw - 24px)!important;
+  padding:8px 10px!important;
+  border-radius:999px!important;
+  font-size:11px!important;
+}
+
+/* Ningún indicador flotante debe tapar un formulario abierto. */
+#modalBackdrop:not([hidden])~.team-connection-pill,
+#modalBackdrop:not([hidden])~.team-pending-queue,
+body:has(#modalBackdrop:not([hidden])) .team-connection-pill,
+body:has(#modalBackdrop:not([hidden])) .team-pending-queue{
+  display:none!important;
+}
+
 /* En teléfonos estrechos, todavía más sencillo. */
 @media(max-width:480px){
   html.ux-compact .main-content{padding-left:10px;padding-right:10px}
@@ -172,6 +193,6 @@ html.ux-compact .line-row>:first-child{grid-column:1/-1}
 }
 
 @media print{
-  .ux-sidebar-backdrop,.ux-sidebar-close,.ux-mobile-nav,.ux-quick-sheet{display:none!important}
+  .ux-sidebar-backdrop,.ux-sidebar-close,.ux-mobile-nav,.ux-quick-sheet,.team-connection-pill,.team-pending-queue{display:none!important}
   html.ux-compact body{padding-bottom:0}
 }
