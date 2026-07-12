@@ -2,6 +2,7 @@ const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 
 const sql = fs.readFileSync('supabase/team-hardening.sql', 'utf8');
+const productionSql = fs.readFileSync('supabase/team-hardening-production.sql', 'utf8');
 const hardening = fs.readFileSync('team-hardening.js', 'utf8');
 const loader = fs.readFileSync('select-innerhtml-stability.js', 'utf8');
 const sw = fs.readFileSync('sw.js', 'utf8');
@@ -60,6 +61,17 @@ test('materiales, compras, gastos y cortes usan bloqueo de edición', async () =
   expect(hardening).toContain("installOpenLock('openPurchaseModal'");
   expect(hardening).toContain("installOpenLock('openExpenseModal'");
   expect(hardening).toContain('prepareCashClosingLock');
+});
+
+test('el SQL de producción conserva los bloques aplicados desde móvil', async () => {
+  expect(productionSql).toContain('CAPA DE PRODUCCIÓN APLICADA EN SUPABASE');
+  expect(productionSql).toContain('create or replace function public.commit_team_batch');
+  expect(productionSql).toContain('create or replace function public.restore_team_backup_part_a');
+  expect(productionSql).toContain('create or replace function public.restore_team_backup_part_b');
+  expect(productionSql).toContain('create or replace function public.restore_team_backup_part_c');
+  expect(productionSql).toContain('create or replace function public.restore_team_backup');
+  expect(productionSql).toContain('create or replace function public.team_hardening_self_check');
+  expect(productionSql).toContain("notify pgrst,'reload schema'");
 });
 
 test('la caché carga la protección avanzada', async () => {
