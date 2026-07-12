@@ -84,6 +84,114 @@ function recipeRow(row = {}) {
   </div>`;
 }
 
+const PRODUCT_OTHER_COST_FIELDS = [
+  'laborCost',
+  'designCost',
+  'electricityCost',
+  'packagingCost',
+  'transportCost',
+  'externalCost',
+  'extraCost',
+  'wastePercent',
+  'commissionPercent'
+];
+
+function normalizedProductCategory(category) {
+  return String(category || '').trim().toLocaleLowerCase('es-MX');
+}
+
+function categoryCostTemplate(category, excludeProductId = '') {
+  const key = normalizedProductCategory(category);
+  if (!key) return null;
+  return [...state.products]
+    .filter(product => product.id !== excludeProductId)
+    .filter(product => product.isCategoryCostTemplate === true)
+    .filter(product => normalizedProductCategory(product.category) === key)
+    .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')))[0] || null;
+}
+
+function otherCostFieldsAreEmpty(form) {
+  return PRODUCT_OTHER_COST_FIELDS.every(name => num(form.elements[name]?.value) === 0);
+}
+
+function updateCategoryCostTemplateStatus(form) {
+  const status = $('#categoryCostTemplateStatus', form);
+  const button = $('#applyCategoryCostTemplate', form);
+  if (!status || !button) return;
+  const category = form.elements.category?.value.trim() || '';
+  const mode = form.elements.otherCostsMode?.value || 'manual';
+  const current = state.products.find(product => product.id === form.elements.id?.value);
+  const template = categoryCostTemplate(category, current?.isCategoryCostTemplate ? current.id : '');
+
+  if (mode === 'manual') {
+    status.textContent = 'Captura manual';
+    button.disabled = true;
+    return;
+  }
+  if (!category) {
+    status.textContent = 'Escribe una categoría';
+    button.disabled = true;
+    return;
+  }
+  if (current?.isCategoryCostTemplate && normalizedProductCategory(current.category) === normalizedProductCategory(category)) {
+    status.textContent = `Este producto es la plantilla de ${category}`;
+    button.disabled = !template;
+    return;
+  }
+  if (!template) {
+    status.textContent = `Aún no hay plantilla para ${category}`;
+    button.disabled = true;
+    return;
+  }
+  status.textContent = `Plantilla disponible: ${template.name}`;
+  button.disabled = false;
+}
+
+function applyCategoryCostTemplate(form, options = {}) {
+  const category = form.elements.category?.value.trim() || '';
+  const currentId = form.elements.id?.value || '';
+  const template = categoryCostTemplate(category, currentId);
+  if (!category) {
+    if (!options.silent) showToast('Escribe primero la categoría del producto.', 'warning');
+    updateCategoryCostTemplateStatus(form);
+    return false;
+  }
+  if (!template) {
+    if (!options.silent) showToast(`No hay una plantilla guardada para ${category}. Captura los valores y márcalos como plantilla.`, 'warning');
+    updateCategoryCostTemplateStatus(form);
+    return false;
+  }
+  if (options.onlyWhenEmpty && !otherCostFieldsAreEmpty(form)) return false;
+  PRODUCT_OTHER_COST_FIELDS.forEach(name => {
+    if (form.elements[name]) form.elements[name].value = String(num(template[name]));
+  });
+  form.dataset.templateSourceId = template.id;
+  updateProductCostPreview();
+  updateCategoryCostTemplateStatus(form);
+  if (!options.silent) showToast(`Costos de ${template.name} aplicados. Puedes modificar cualquier campo manualmente.`);
+  return true;
+}
+
+function bindProductOtherCostMode(form) {
+  const mode = form.elements.otherCostsMode;
+  const category = form.elements.category;
+  const applyButton = $('#applyCategoryCostTemplate', form);
+  const templateCheckbox = form.elements.saveAsCategoryTemplate;
+
+  mode?.addEventListener('change', () => {
+    if (mode.value === 'category') applyCategoryCostTemplate(form, { silent: false });
+    else updateCategoryCostTemplateStatus(form);
+  });
+  category?.addEventListener('change', () => {
+    if (mode?.value === 'category') applyCategoryCostTemplate(form, { silent: true, onlyWhenEmpty: true });
+    updateCategoryCostTemplateStatus(form);
+  });
+  category?.addEventListener('blur', () => updateCategoryCostTemplateStatus(form));
+  applyButton?.addEventListener('click', () => applyCategoryCostTemplate(form));
+  templateCheckbox?.addEventListener('change', () => updateCategoryCostTemplateStatus(form));
+  updateCategoryCostTemplateStatus(form);
+}
+
 function productFromForm(form) {
   const data = Object.fromEntries(new FormData(form));
   const recipe = $$('.line-row.recipe', form)
@@ -105,6 +213,8 @@ function productFromForm(form) {
     extraCost: num(data.extraCost),
     wastePercent: num(data.wastePercent),
     commissionPercent: num(data.commissionPercent),
+    otherCostsMode: data.otherCostsMode === 'category' ? 'category' : 'manual',
+    isCategoryCostTemplate: Boolean(form.elements.saveAsCategoryTemplate?.checked),
     productionMinutes: Math.max(0, num(data.productionMinutes)),
     autoPrice: Boolean(form.elements.autoPrice?.checked),
     targetMarginPercent: num(data.targetMarginPercent) || 40,
@@ -146,17 +256,18 @@ function productOverheadMarkup(product) {
 function openProductModal(id = '') {
   const product = state.products.find(item => item.id === id) || {
     salePrice: 0, recipe: [], autoPrice: false, targetMarginPercent: 40,
-    priceRounding: 1, productionMinutes: 0
+    priceRounding: 1, productionMinutes: 0, otherCostsMode: 'manual',
+    isCategoryCostTemplate: false
   };
   openModal(
     id ? 'Editar producto y costos' : 'Nuevo producto y costos',
-    `<form id="productForm" class="modal-form">
+    `<form id="productForm" class="modal-form" data-product-mode="${id ? 'edit' : 'new'}">
       <input type="hidden" name="id" value="${esc(product.id || '')}">
       <div class="form-section">
         <div class="section-title"><div><h3>Información de venta</h3></div></div>
         <div class="modal-form">
           <label class="full">Producto<input name="name" required value="${esc(product.name || '')}"></label>
-          <label>Categoría<input name="category" value="${esc(product.category || '')}"></label>
+          <label>Categoría<input name="category" value="${esc(product.category || '')}" placeholder="Ej. Sublimación"></label>
           <label>Precio de venta<input name="salePrice" class="product-cost-input" type="number" min="0" step="0.01" value="${num(product.salePrice)}" ${product.autoPrice ? 'readonly' : ''}></label>
           <label>IVA informativo %<input name="taxPercent" type="number" min="0" step="0.01" value="${num(product.taxPercent)}"></label>
         </div>
@@ -174,7 +285,18 @@ function openProductModal(id = '') {
         <div class="dynamic-list" id="recipeRows">${(product.recipe || []).map(recipeRow).join('')}</div>
       </div>
       <div class="form-section">
-        <div class="section-title"><div><h3>Otros costos por unidad</h3></div></div>
+        <div class="section-title"><div><h3>Otros costos por unidad</h3><p>Puedes capturarlos manualmente o reutilizar una plantilla de la misma categoría.</p></div></div>
+        <div class="auto-price-panel" id="otherCostModePanel">
+          <div class="auto-price-grid">
+            <label>Forma de captura<select name="otherCostsMode" id="otherCostsMode"><option value="manual" ${(product.otherCostsMode || 'manual') === 'manual' ? 'selected' : ''}>Manual</option><option value="category" ${product.otherCostsMode === 'category' ? 'selected' : ''}>Automático por categoría</option></select></label>
+            <div class="auto-price-result"><span>Plantilla</span><strong id="categoryCostTemplateStatus">Revisando…</strong></div>
+          </div>
+          <div class="actions" style="margin-top:10px;align-items:center;flex-wrap:wrap">
+            <button class="button secondary small" id="applyCategoryCostTemplate" type="button">Aplicar plantilla</button>
+            <label class="catalog-preferred-check"><input name="saveAsCategoryTemplate" type="checkbox" ${product.isCategoryCostTemplate ? 'checked' : ''}> Guardar estos valores como plantilla de esta categoría</label>
+          </div>
+          <small>El modo automático solo rellena los segmentos. Después puedes cambiar cualquier cantidad manualmente. Los materiales y los costos fijos mensuales se calculan por separado para evitar duplicarlos.</small>
+        </div>
         <div class="modal-form">
           <label>Mano de obra<input name="laborCost" class="product-cost-input" type="number" min="0" step="0.01" value="${num(product.laborCost)}"></label>
           <label>Diseño<input name="designCost" class="product-cost-input" type="number" min="0" step="0.01" value="${num(product.designCost)}"></label>
@@ -198,6 +320,8 @@ function openProductModal(id = '') {
     `<button class="button secondary" data-close-modal>Cancelar</button><button class="button primary" form="productForm">Guardar producto</button>`,
     true
   );
+  const form = $('#productForm');
+  bindProductOtherCostMode(form);
   updateProductCostPreview();
 }
 
@@ -230,10 +354,24 @@ function updateProductCostPreview() {
 function saveProduct(form) {
   const product = productFromForm(form);
   if (!product.name) return showToast('Escribe el nombre del producto', 'error');
+  if (product.isCategoryCostTemplate && !product.category) {
+    return showToast('Escribe una categoría para guardar la plantilla de costos.', 'error');
+  }
   if (product.autoPrice) product.salePrice = recommendedProductPrice(product);
+
+  if (product.isCategoryCostTemplate) {
+    const categoryKey = normalizedProductCategory(product.category);
+    state.products.forEach(item => {
+      if (item.id !== product.id && normalizedProductCategory(item.category) === categoryKey) {
+        item.isCategoryCostTemplate = false;
+      }
+    });
+  }
+
   const index = state.products.findIndex(item => item.id === product.id);
   if (index >= 0) state.products[index] = { ...state.products[index], ...product };
   else state.products.push({ ...product, createdAt: new Date().toISOString() });
   closeModal(true);
-  saveState(index >= 0 ? 'Producto, costos y precio actualizados' : 'Producto, costos y precio agregados');
+  const templateMessage = product.isCategoryCostTemplate ? ` · plantilla de ${product.category} guardada` : '';
+  saveState(`${index >= 0 ? 'Producto, costos y precio actualizados' : 'Producto, costos y precio agregados'}${templateMessage}`);
 }
