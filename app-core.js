@@ -2,7 +2,7 @@ const STORAGE_KEY = 'mooreprint-control-v1';
 const INVENTORY_STATUSES = new Set(['en_proceso', 'listo', 'entregado']);
 
 const defaultState = {
-  version: 2,
+  version: 3,
   customers: [], suppliers: [], materials: [], products: [], quotes: [], orders: [],
   purchases: [], expenses: [], recurringExpenses: [], cashTransactions: [], inventoryMovements: [],
   business: {
@@ -33,16 +33,18 @@ function normalizeState(saved) {
   });
   result.business = { ...defaultState.business, ...(saved?.business || {}) };
   result.products = result.products.map(product => ({ recipe: [], designCost: 0, electricityCost: 0, packagingCost: 0, transportCost: 0, externalCost: 0, commissionPercent: 0, wastePercent: 0, ...product }));
+  result.materials = result.materials.map(material => ({ lastValuationPurchaseId: '', ...material }));
   result.orders = result.orders.map(order => {
     const payments = Array.isArray(order.payments) ? order.payments : (num(order.paid) > 0 ? [{ id: uid('pay'), date: order.orderDate || todayISO(), amount: num(order.paid), method: 'otro', reference: 'Pago migrado' }] : []);
     return { customerId: '', priority: 'normal', designStatus: 'pendiente', responsible: '', discount: 0, taxPercent: 0, deliveryCharge: 0, deliveryCost: 0, payments, inventoryApplied: false, inventorySnapshot: [], ...order, payments };
   });
   result.expenses = result.expenses.map(expense => {
     const payments = Array.isArray(expense.payments) ? expense.payments : [{ id: uid('pay'), date: expense.date || todayISO(), amount: num(expense.paidAmount ?? expense.amount), method: expense.paymentMethod || 'otro', reference: 'Pago migrado' }].filter(payment => payment.amount > 0);
-    return { dueDate: expense.date, payments, recurringId: '', ...expense, payments };
+    return { dueDate: expense.date, payments, recurringId: '', includedInPricing: false, ...expense, payments };
   });
-  result.purchases = result.purchases.map(purchase => ({ payments: [], inventoryApplied: true, ...purchase }));
-  result.version = 2;
+  result.recurringExpenses = result.recurringExpenses.map(item => ({ includedInPricing: false, ...item }));
+  result.purchases = result.purchases.map(purchase => ({ payments: [], inventoryApplied: true, valuationSnapshot: [], ...purchase }));
+  result.version = 3;
   return result;
 }
 
@@ -74,7 +76,7 @@ function categoryName(category) {
   return ({ materiales: 'Materiales', pasajes: 'Pasajes', gasolina: 'Gasolina', gas: 'Gas', renta_local: 'Renta o local', servicios: 'Servicios', sueldos: 'Sueldos', mantenimiento: 'Mantenimiento', marketing: 'Publicidad', impuestos: 'Impuestos', otros: 'Otros' })[category] || category || 'Otros';
 }
 function statusName(status) {
-  return ({ pendiente: 'Pendiente', en_proceso: 'En proceso', listo: 'Listo', entregado: 'Entregado', cancelado: 'Cancelado', borrador: 'Borrador', enviada: 'Enviada', aceptada: 'Aceptada', rechazada: 'Rechazada', vencida: 'Vencida', convertida: 'Convertida' })[status] || status;
+  return ({ pendiente: 'Pendiente', en_proceso: 'En proceso', listo: 'Listo', entregado: 'Entregado', cancelado: 'Cancelado', borrador: 'Borrador', enviada: 'Enviada', aceptada: 'Aceptada', rechazada: 'Rechazada', vencida: 'Vencida', convertida: 'Convertida', saldo_a_favor: 'Saldo a favor' })[status] || status;
 }
 function methodName(method) {
   return ({ efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta: 'Tarjeta', deposito: 'Depósito', credito: 'Crédito', otro: 'Otro' })[method] || method || 'Otro';
@@ -97,10 +99,11 @@ function paymentTotal(record) { return sum(record.payments || [], payment => num
 
 function productBreakdown(product, salePrice = product.salePrice) {
   const recipeCost = sum(product.recipe || [], row => {
+    if (!row.materialId) return 0;
     const material = state.materials.find(item => item.id === row.materialId);
     return num(row.qty) * num(material?.unitCost);
   });
-  const legacyMaterial = product.recipe?.length ? 0 : num(product.materialCost);
+  const legacyMaterial = product.recipe?.some(row => row.materialId) ? 0 : num(product.materialCost);
   const material = recipeCost + legacyMaterial;
   const process = num(product.laborCost) + num(product.designCost) + num(product.electricityCost) + num(product.packagingCost) + num(product.transportCost) + num(product.externalCost) + num(product.extraCost);
   const waste = (material + process) * num(product.wastePercent) / 100;
@@ -110,25 +113,31 @@ function productBreakdown(product, salePrice = product.salePrice) {
 }
 
 function documentTotals(document) {
+  if (window.MoorePrintAccountingMath?.documentTotals) return window.MoorePrintAccountingMath.documentTotals(document);
   const subtotal = sum(document.items || [], item => num(item.qty) * num(item.price));
-  const discount = Math.min(subtotal, num(document.discount));
+  const discount = Math.min(subtotal, Math.max(0, num(document.discount)));
   const taxable = Math.max(0, subtotal - discount);
-  const tax = taxable * num(document.taxPercent) / 100;
-  const total = taxable + tax + num(document.deliveryCharge);
-  const costs = sum(document.items || [], item => num(item.qty) * num(item.cost)) + num(document.deliveryCost);
+  const tax = taxable * Math.max(0, num(document.taxPercent)) / 100;
+  const netRevenue = taxable + Math.max(0, num(document.deliveryCharge));
+  const total = netRevenue + tax;
+  const costs = sum(document.items || [], item => num(item.qty) * num(item.cost)) + Math.max(0, num(document.deliveryCost));
   const paid = paymentTotal(document);
-  return { subtotal, discount, tax, total, costs, profit: total - costs, paid, balance: Math.max(0, total - paid) };
+  return { subtotal, discount, taxable, tax, netRevenue, total, costs, variableCosts: costs, allocatedOverhead: 0, profit: netRevenue - costs, paid, balance: Math.max(0, total - paid), credit: Math.max(0, paid - total) };
 }
 
 function purchaseTotals(purchase) {
+  if (window.MoorePrintAccountingMath?.purchaseTotals) return window.MoorePrintAccountingMath.purchaseTotals(purchase);
   const total = sum(purchase.items || [], item => num(item.qty) * num(item.unitCost));
   const paid = paymentTotal(purchase);
-  return { total, paid, balance: Math.max(0, total - paid) };
+  return { total, paid, balance: Math.max(0, total - paid), credit: Math.max(0, paid - total) };
 }
 function expenseTotals(expense) {
+  if (window.MoorePrintAccountingMath?.expenseTotals) return window.MoorePrintAccountingMath.expenseTotals(expense, todayISO());
   const total = num(expense.amount);
   const paid = paymentTotal(expense);
-  return { total, paid, balance: Math.max(0, total - paid), status: paid >= total && total > 0 ? 'pagado' : paid > 0 ? 'parcial' : (expense.dueDate && expense.dueDate < todayISO() ? 'vencido' : 'pendiente') };
+  const balance = Math.max(0, total - paid);
+  const credit = Math.max(0, paid - total);
+  return { total, paid, balance, credit, status: credit > 0 ? 'saldo_a_favor' : paid >= total && total > 0 ? 'pagado' : paid > 0 ? 'parcial' : (expense.dueDate && expense.dueDate < todayISO() ? 'vencido' : 'pendiente') };
 }
 function inventoryValue() { return sum(state.materials, material => num(material.stock) * num(material.unitCost)); }
 function isLowStock(material) { return num(material.stock) <= num(material.minStock); }
@@ -146,8 +155,8 @@ function aggregateRecipeUsage(order) {
   return Object.entries(usage).map(([materialId, qty]) => ({ materialId, qty }));
 }
 
-function addInventoryMovement(materialId, quantity, type, reason, referenceId = '', date = todayISO()) {
-  state.inventoryMovements.push({ id: uid('move'), materialId, quantity: num(quantity), type, reason, referenceId, date, createdAt: new Date().toISOString() });
+function addInventoryMovement(materialId, quantity, type, reason, referenceId = '', date = todayISO(), details = {}) {
+  state.inventoryMovements.push({ id: uid('move'), materialId, quantity: num(quantity), type, reason, referenceId, date, createdAt: new Date().toISOString(), ...details });
 }
 
 function canSyncOrderInventory(oldOrder, newOrder) {
@@ -185,43 +194,117 @@ function syncOrderInventory(oldOrder, newOrder) {
   }
 }
 
+function aggregatePurchaseItems(items) {
+  if (window.MoorePrintAccountingMath?.aggregatePurchaseItems) return window.MoorePrintAccountingMath.aggregatePurchaseItems(items);
+  const grouped = {};
+  (items || []).forEach(item => {
+    if (!item.materialId) return;
+    const row = grouped[item.materialId] || { materialId: item.materialId, qty: 0, value: 0 };
+    row.qty += Math.max(0, num(item.qty));
+    row.value += Math.max(0, num(item.qty)) * Math.max(0, num(item.unitCost));
+    grouped[item.materialId] = row;
+  });
+  return Object.values(grouped).map(row => ({ ...row, unitCost: row.qty ? row.value / row.qty : 0 }));
+}
+
 function canSyncPurchaseInventory(oldPurchase, newPurchase) {
   if (!oldPurchase?.inventoryApplied) return true;
-  const oldQty = {};
-  (oldPurchase.items || []).forEach(item => { oldQty[item.materialId] = (oldQty[item.materialId] || 0) + num(item.qty); });
-  const newQty = {};
-  (newPurchase.items || []).forEach(item => { newQty[item.materialId] = (newQty[item.materialId] || 0) + num(item.qty); });
-  return Object.keys(oldQty).every(materialId => num(state.materials.find(item => item.id === materialId)?.stock) - num(oldQty[materialId]) + num(newQty[materialId]) >= 0) || window.confirm('Al modificar esta compra alguna existencia puede quedar negativa. ¿Deseas continuar?');
+  const oldRows = Object.fromEntries(aggregatePurchaseItems(oldPurchase.items).map(row => [row.materialId, row]));
+  const newRows = Object.fromEntries(aggregatePurchaseItems(newPurchase.items).map(row => [row.materialId, row]));
+  return Object.keys(oldRows).every(materialId => num(state.materials.find(item => item.id === materialId)?.stock) - num(oldRows[materialId]?.qty) + num(newRows[materialId]?.qty) >= 0) || window.confirm('Al modificar esta compra alguna existencia puede quedar negativa. ¿Deseas continuar?');
+}
+
+function reversePurchaseInventory(purchase, reason = '') {
+  if (!purchase?.inventoryApplied) return { warnings: 0 };
+  const math = window.MoorePrintAccountingMath;
+  const grouped = aggregatePurchaseItems(purchase.items);
+  let warnings = 0;
+  grouped.forEach(row => {
+    const material = state.materials.find(item => item.id === row.materialId);
+    if (!material) return;
+    const snapshot = (purchase.valuationSnapshot || []).find(item => item.materialId === row.materialId);
+    const exact = material.lastValuationPurchaseId === purchase.id && snapshot ? snapshot.beforeUnitCost : undefined;
+    const result = math?.reversePurchaseValuation
+      ? math.reversePurchaseValuation(material, row, { exactBeforeCost: exact })
+      : { stock: num(material.stock) - num(row.qty), unitCost: num(material.unitCost), removedValue: num(row.qty) * num(row.unitCost), valuationWarning: false };
+    const beforeCost = num(material.unitCost);
+    material.stock = result.stock;
+    material.unitCost = Math.max(0, num(result.unitCost));
+    if (material.lastValuationPurchaseId === purchase.id) material.lastValuationPurchaseId = snapshot?.previousPurchaseId || '';
+    if (result.valuationWarning) warnings += 1;
+    addInventoryMovement(row.materialId, -num(row.qty), 'ajuste', reason || `Reversión de compra ${purchase.invoice || purchase.id}`, purchase.id, purchase.date || todayISO(), {
+      unitCost: num(row.unitCost),
+      valueDelta: -num(result.removedValue),
+      unitCostBefore: beforeCost,
+      unitCostAfter: material.unitCost,
+      valuationWarning: Boolean(result.valuationWarning)
+    });
+  });
+  purchase.inventoryApplied = false;
+  return { warnings };
+}
+
+function applyPurchaseInventory(purchase) {
+  const math = window.MoorePrintAccountingMath;
+  const grouped = aggregatePurchaseItems(purchase.items);
+  purchase.valuationSnapshot = [];
+  grouped.forEach(row => {
+    const material = state.materials.find(item => item.id === row.materialId);
+    if (!material) return;
+    const beforeStock = num(material.stock);
+    const beforeUnitCost = num(material.unitCost);
+    const previousPurchaseId = material.lastValuationPurchaseId || '';
+    const result = math?.applyPurchaseValuation
+      ? math.applyPurchaseValuation(material, row)
+      : { stock: beforeStock + num(row.qty), unitCost: beforeStock + num(row.qty) > 0 ? ((beforeStock * beforeUnitCost) + (num(row.qty) * num(row.unitCost))) / (beforeStock + num(row.qty)) : beforeUnitCost, addedValue: num(row.qty) * num(row.unitCost) };
+    material.stock = result.stock;
+    material.unitCost = Math.max(0, num(result.unitCost));
+    material.lastValuationPurchaseId = purchase.id;
+    purchase.valuationSnapshot.push({
+      materialId: row.materialId,
+      beforeStock,
+      beforeUnitCost,
+      previousPurchaseId,
+      purchasedQty: num(row.qty),
+      purchaseUnitCost: num(row.unitCost),
+      afterStock: material.stock,
+      afterUnitCost: material.unitCost
+    });
+    addInventoryMovement(row.materialId, num(row.qty), 'entrada', `Compra ${purchase.invoice || purchase.id}`, purchase.id, purchase.date, {
+      unitCost: num(row.unitCost),
+      valueDelta: num(result.addedValue),
+      unitCostBefore: beforeUnitCost,
+      unitCostAfter: material.unitCost
+    });
+  });
+  purchase.inventoryApplied = true;
 }
 
 function syncPurchaseInventory(oldPurchase, newPurchase) {
-  if (oldPurchase?.inventoryApplied) {
-    (oldPurchase.items || []).forEach(item => {
-      const material = state.materials.find(row => row.id === item.materialId);
-      if (material) material.stock = num(material.stock) - num(item.qty);
-      addInventoryMovement(item.materialId, -num(item.qty), 'ajuste', `Reversión de compra ${oldPurchase.invoice || oldPurchase.id}`, oldPurchase.id);
-    });
-  }
-  (newPurchase.items || []).forEach(item => {
-    const material = state.materials.find(row => row.id === item.materialId);
-    if (!material) return;
-    const previousStock = num(material.stock);
-    const newStock = previousStock + num(item.qty);
-    if (newStock > 0) material.unitCost = ((previousStock * num(material.unitCost)) + (num(item.qty) * num(item.unitCost))) / newStock;
-    material.stock = newStock;
-    addInventoryMovement(item.materialId, num(item.qty), 'entrada', `Compra ${newPurchase.invoice || newPurchase.id}`, newPurchase.id, newPurchase.date);
-  });
-  newPurchase.inventoryApplied = true;
+  const reverseResult = reversePurchaseInventory(oldPurchase, oldPurchase ? `Reversión de compra ${oldPurchase.invoice || oldPurchase.id}` : '');
+  applyPurchaseInventory(newPurchase);
+  if (reverseResult.warnings) setTimeout(() => showToast('La compra se ajustó; revisa el costo promedio de los materiales marcados.', 'warning'), 0);
 }
 
 function cashEntries() {
-  const entries = [{ id: 'opening', date: '0000-00-00', type: 'entrada', origin: 'saldo_inicial', description: 'Saldo inicial de caja', method: 'otro', reference: '', amount: num(state.business.openingCash) }];
+  const entries = [{ id: 'opening', date: '0000-00-00', type: 'entrada', origin: 'saldo_inicial', description: 'Saldo inicial de efectivo', method: 'efectivo', reference: '', amount: num(state.business.openingCash) }];
   state.orders.forEach(order => (order.payments || []).forEach(payment => entries.push({ ...payment, id: `order-${payment.id}`, type: 'entrada', origin: 'pedido', description: `${order.folio} · ${order.customer || entityName(state.customers, order.customerId)}`, amount: num(payment.amount), sourceId: order.id })));
   state.purchases.forEach(purchase => (purchase.payments || []).forEach(payment => entries.push({ ...payment, id: `purchase-${payment.id}`, type: 'salida', origin: 'compra', description: `${purchase.invoice || 'Compra'} · ${entityName(state.suppliers, purchase.supplierId)}`, amount: num(payment.amount), sourceId: purchase.id })));
   state.expenses.forEach(expense => (expense.payments || []).forEach(payment => entries.push({ ...payment, id: `expense-${payment.id}`, type: 'salida', origin: 'gasto', description: expense.description, amount: num(payment.amount), sourceId: expense.id })));
   state.cashTransactions.forEach(transaction => entries.push({ ...transaction, origin: 'manual', amount: num(transaction.amount) }));
   return entries.sort((a, b) => `${b.date}${b.createdAt || ''}`.localeCompare(`${a.date}${a.createdAt || ''}`));
 }
-function cashBalance() { return sum(cashEntries(), entry => entry.type === 'entrada' ? num(entry.amount) : -num(entry.amount)); }
+function cashBalancesByMethod() {
+  if (window.MoorePrintAccountingMath?.balancesByMethod) return window.MoorePrintAccountingMath.balancesByMethod(cashEntries(), state.business.openingCash);
+  return cashEntries().reduce((result, entry) => {
+    const method = entry.method || 'otro';
+    result[method] = num(result[method]) + (entry.type === 'entrada' ? num(entry.amount) : -num(entry.amount));
+    return result;
+  }, {});
+}
+function cashBalance() { return num(cashBalancesByMethod().efectivo); }
+function fundsBalance() { return sum(Object.values(cashBalancesByMethod()), value => num(value)); }
 function accountsReceivable() { return sum(state.orders.filter(order => order.status !== 'cancelado'), order => documentTotals(order).balance); }
+function customerCredits() { return sum(state.orders.filter(order => order.status !== 'cancelado'), order => documentTotals(order).credit); }
 function accountsPayable() { return sum(state.purchases, purchase => purchaseTotals(purchase).balance) + sum(state.expenses, expense => expenseTotals(expense).balance); }
+function supplierCredits() { return sum(state.purchases, purchase => purchaseTotals(purchase).credit) + sum(state.expenses, expense => expenseTotals(expense).credit); }
