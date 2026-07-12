@@ -19,6 +19,9 @@ const localProtection = fs.readFileSync('local-protection.js', 'utf8');
 const pwa = fs.readFileSync('pwa.js', 'utf8');
 const assistant = fs.readFileSync('business-assistant.js', 'utf8');
 const contacts = fs.readFileSync('app-contacts.js', 'utf8');
+const accountingMath = fs.readFileSync('accounting-math.js', 'utf8');
+const accountingIntegrity = fs.readFileSync('accounting-integrity.js', 'utf8');
+const core = fs.readFileSync('app-core.js', 'utf8');
 
 test('las políticas usan permisos diferentes para ver, crear, editar y eliminar', async () => {
   for (const permission of [
@@ -87,7 +90,7 @@ test('pagos, cortes e inventario requieren confirmación especial', async () => 
 });
 
 test('la aplicación y la caché cargan todos los módulos nuevos', async () => {
-  for (const file of ['state-bridge.js', 'granular-sync-guard.js', 'team-improvements.js', 'startup-query-limit.js', 'select-innerhtml-stability.js', 'team-operations.js', 'business-assistant.js']) {
+  for (const file of ['accounting-math.js', 'state-bridge.js', 'granular-sync-guard.js', 'team-improvements.js', 'startup-query-limit.js', 'select-innerhtml-stability.js', 'team-operations.js', 'business-assistant.js', 'accounting-integrity.js']) {
     expect(app).toContain(`loadScriptOnce('${file}')`);
     expect(serviceWorker).toContain(`'./${file}'`);
   }
@@ -97,7 +100,7 @@ test('la aplicación y la caché cargan todos los módulos nuevos', async () => 
   expect(selectStability).toContain('team-hardening.js');
   expect(serviceWorker).toContain("'./team-operations-ui-guard.js'");
   expect(serviceWorker).toContain("'./team-hardening.js'");
-  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v29'");
+  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v30'");
   expect(selectStability).toContain('HTMLSelectElement');
   expect(stateBridge).toContain("Object.defineProperty(window, 'state'");
 });
@@ -151,6 +154,21 @@ test('la preparación CFDI conserva datos fiscales sin simular timbrado', async 
   expect(assistant).toContain('Registrar UUID timbrado');
   expect(assistant).not.toContain('privateKey');
   expect(assistant).not.toContain('certificatePassword');
+});
+
+test('la integridad contable separa IVA, saldos a favor, efectivo y costo promedio', async () => {
+  expect(accountingMath).toContain('netRevenue - costs');
+  expect(accountingMath).toContain('credit: Math.max(0, paid - total)');
+  expect(accountingMath).toContain('reversePurchaseValuation');
+  expect(accountingMath).toContain('applyPurchaseValuation');
+  expect(accountingMath).toContain('productProfitRows');
+  expect(core).toContain("method: 'efectivo'");
+  expect(core).toContain('function reversePurchaseInventory');
+  expect(core).toContain('function cashBalancesByMethod');
+  expect(accountingIntegrity).toContain('includedInPricing');
+  expect(accountingIntegrity).toContain('costos fijos ya incluidos y conciliados');
+  expect(accountingIntegrity).toContain('Ventas netas');
+  expect(accountingIntegrity).toContain('Saldos por método');
 });
 
 test('el indicador contempla los cuatro estados operativos', async () => {
