@@ -45,6 +45,15 @@
     script.src = './purchase-packages.js';
     script.async = false;
     script.dataset.purchasePackages = 'true';
+    script.addEventListener('load', () => {
+      if (document.querySelector('script[data-unit-normalization]')) return;
+      const normalization = document.createElement('script');
+      normalization.src = './unit-normalization.js';
+      normalization.async = false;
+      normalization.dataset.unitNormalization = 'true';
+      normalization.addEventListener('error', () => console.warn('No se pudo corregir la unidad del inventario.'));
+      document.head.appendChild(normalization);
+    });
     script.addEventListener('error', () => console.warn('No se pudo cargar el soporte de compras por caja.'));
     document.head.appendChild(script);
   }
