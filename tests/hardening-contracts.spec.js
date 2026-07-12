@@ -77,5 +77,5 @@ test('el SQL de producción conserva los bloques aplicados desde móvil', async 
 test('la caché carga la protección avanzada', async () => {
   expect(loader).toContain("'team-hardening.js'");
   expect(sw).toContain("'./team-hardening.js'");
-  expect(sw).toContain("CACHE_NAME = 'mooreprint-v30'");
+  expect(sw).toContain("CACHE_NAME = 'mooreprint-v31'");
 });
