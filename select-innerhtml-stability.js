@@ -61,6 +61,14 @@
         'No se pudo cargar la protección avanzada.'
       );
     }
+
+    if (!window.__moorePrintAccountingCloudSync) {
+      loadScriptOnce(
+        'accounting-cloud-sync.js',
+        'data-accounting-cloud-sync',
+        'No se pudo cargar la sincronización de ajustes contables.'
+      );
+    }
   }
 
   setTimeout(() => loadOperationsExtensions(), 0);
