@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mooreprint-v34';
+const CACHE_NAME = 'mooreprint-v35';
 const APP_SHELL = [
   './',
   './index.html',

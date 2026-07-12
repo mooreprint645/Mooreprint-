@@ -45,6 +45,10 @@ async function initializeModules() {
   }
 }
 
+function formIdentifier(form) {
+  return form?.getAttribute?.('id') || '';
+}
+
 function setupEvents() {
   $$('.nav-item').forEach(button => button.addEventListener('click', () => navigate(button.dataset.section)));
   $$('[data-go]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.go)));
@@ -288,7 +292,7 @@ function setupEvents() {
       paymentForm: savePayment,
       cashTransactionForm: saveCashTransaction
     };
-    const handler = handlers[event.target.id];
+    const handler = handlers[formIdentifier(event.target)];
     if (handler) {
       event.preventDefault();
       handler(event.target);
