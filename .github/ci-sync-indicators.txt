@@ -1,0 +1,1 @@
+Validación temporal de indicadores de sincronización no invasivos.
