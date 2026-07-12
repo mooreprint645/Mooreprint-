@@ -1,19 +1,72 @@
-const CACHE_NAME = 'mooreprint-v31';
-// Migración anterior verificada: CACHE_NAME = 'mooreprint-v30'
+const CACHE_NAME = 'mooreprint-v32';
 const APP_SHELL = [
-  './', './index.html', './styles.css', './brand-theme.css', './advanced-features.css', './access-control.css', './supplier-catalog.css', './monthly-overhead.css', './branch-access.css', './usability.css', './mobile-fixes.css', './business-assistant.css',
-  './files-db.js', './local-protection.js', './pwa.js', './accounting-math.js', './app-core.js', './app-render-main.js', './app-render-finance.js',
-  './app-contacts.js', './app-catalog.js', './app-documents.js', './app-finance.js',
-  './app-tools.js', './advanced-fixes.js', './advanced-features.js', './performance-fixes.js', './team-workflow.js', './state-bridge.js', './granular-sync-guard.js', './team-improvements.js', './startup-query-limit.js', './select-innerhtml-stability.js', './team-operations.js', './team-operations-ui-guard.js', './team-hardening.js', './business-assistant.js', './accounting-integrity.js', './accounting-cloud-sync.js', './supplier-catalog.js', './monthly-overhead.js', './branch-access.js', './catalog-cloud.js', './overhead-cloud.js', './usability.js', './mobile-fixes.js', './supabase-config.js', './supabase-cloud.js',
-  './app.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'
+  './',
+  './index.html',
+  './styles.css',
+  './brand-theme.css',
+  './advanced-features.css',
+  './access-control.css',
+  './supplier-catalog.css',
+  './monthly-overhead.css',
+  './branch-access.css',
+  './usability.css',
+  './mobile-fixes.css',
+  './business-assistant.css',
+  './files-db.js',
+  './local-protection.js',
+  './pwa.js',
+  './accounting-math.js',
+  './app-core.js',
+  './app-render-main.js',
+  './app-render-finance.js',
+  './app-contacts.js',
+  './app-catalog.js',
+  './app-documents.js',
+  './app-finance.js',
+  './app-tools.js',
+  './advanced-fixes.js',
+  './advanced-features.js',
+  './performance-fixes.js',
+  './supabase-config.js',
+  './supabase-cloud.js',
+  './team-workflow.js',
+  './state-bridge.js',
+  './granular-sync-guard.js',
+  './team-improvements.js',
+  './startup-query-limit.js',
+  './select-innerhtml-stability.js',
+  './team-operations.js',
+  './team-operations-ui-guard.js',
+  './team-hardening.js',
+  './supplier-catalog.js',
+  './monthly-overhead.js',
+  './branch-access.js',
+  './catalog-cloud.js',
+  './overhead-cloud.js',
+  './usability.js',
+  './mobile-fixes.js',
+  './business-assistant.js',
+  './app.js',
+  './manifest.webmanifest',
+  './icon.svg',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim()));
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
 });
 
 async function networkFirst(request, fallback) {
@@ -42,20 +95,24 @@ self.addEventListener('fetch', event => {
       event.respondWith(networkFirst(event.request));
       return;
     }
-    event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-      return response;
-    })));
+    event.respondWith(
+      caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        return response;
+      }))
+    );
     return;
   }
 
   if (url.hostname.includes('cdn.jsdelivr.net')) {
-    event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-      return response;
-    })));
+    event.respondWith(
+      caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        return response;
+      }))
+    );
   }
 });
 

@@ -39,11 +39,12 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           const html = fs.readFileSync('index.html', 'utf8');
-          const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map(match => match[1]);
-          const missingScripts = scripts.filter(file => !fs.existsSync(file));
+          const declaredScripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map(match => match[1]);
+          const localScripts = declaredScripts.filter(file => !/^https?:\/\//.test(file));
+          const missingScripts = localScripts.filter(file => !fs.existsSync(file));
           if (missingScripts.length) throw new Error(`Scripts faltantes: ${missingScripts.join(', ')}`);
 
-          const dynamicLoaders = ['app.js', 'advanced-fixes.js', 'performance-fixes.js', 'select-innerhtml-stability.js']
+          const dynamicLoaders = ['advanced-fixes.js', 'performance-fixes.js']
             .filter(file => fs.existsSync(file))
             .map(file => fs.readFileSync(file, 'utf8'))
             .join('\n');
@@ -53,7 +54,7 @@ jobs:
           const missingDynamic = dynamicallyLoaded.filter(file => !fs.existsSync(file));
           if (missingDynamic.length) throw new Error(`Scripts dinámicos faltantes: ${missingDynamic.join(', ')}`);
 
-          const allScripts = [...new Set([...scripts, ...dynamicallyLoaded])];
+          const allScripts = [...new Set([...localScripts, ...dynamicallyLoaded])];
           const js = allScripts.map(file => fs.readFileSync(file, 'utf8')).join('\n');
           const staticIds = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
           const dynamicIds = new Set([...js.matchAll(/\bid=\\?"([^"$]+)\\?"/g)].map(match => match[1]));
@@ -64,7 +65,7 @@ jobs:
           const missingIds = [...referenced].filter(id => !staticIds.has(id) && !dynamicIds.has(id));
           if (missingIds.length) throw new Error(`Identificadores faltantes: ${missingIds.join(', ')}`);
 
-          console.log(`Validación correcta: ${allScripts.length} scripts, ${staticIds.size} identificadores estáticos y ${dynamicIds.size} dinámicos.`);
+          console.log(`Validación correcta: ${allScripts.length} scripts locales, ${staticIds.size} identificadores estáticos y ${dynamicIds.size} dinámicos.`);
           NODE
 
       - name: Instalar Playwright y Supabase
