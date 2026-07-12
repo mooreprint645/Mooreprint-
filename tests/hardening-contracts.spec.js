@@ -37,7 +37,7 @@ test('la cola sin conexión es persistente y muestra cambios pendientes', async 
   expect(hardening).toContain('localStorage.setItem(queueKey()');
   expect(hardening).toContain("window.addEventListener('online'");
   expect(hardening).toContain('cambio${queue.length === 1');
-  expect(hardening).toContain('status === \'conflict\'');
+  expect(hardening).toContain("status === 'conflict'");
   expect(hardening).toContain('retryHardeningQueue');
 });
 
@@ -59,11 +59,11 @@ test('materiales, compras, gastos y cortes usan bloqueo de edición', async () =
   expect(hardening).toContain("installOpenLock('openMaterialModal'");
   expect(hardening).toContain("installOpenLock('openPurchaseModal'");
   expect(hardening).toContain("installOpenLock('openExpenseModal'");
-  expect(hardening).toContain("prepareCashClosingLock");
+  expect(hardening).toContain('prepareCashClosingLock');
 });
 
 test('la caché carga la protección avanzada', async () => {
   expect(loader).toContain("'team-hardening.js'");
   expect(sw).toContain("'./team-hardening.js'");
-  expect(sw).toContain("CACHE_NAME = 'mooreprint-v27'");
+  expect(sw).toContain("CACHE_NAME = 'mooreprint-v28'");
 });
