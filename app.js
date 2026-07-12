@@ -32,6 +32,7 @@ function loadScriptOnce(src) {
 }
 
 async function loadAdvancedFeatures() {
+  await loadScriptOnce('accounting-math.js');
   loadStyleOnce('advanced-features.css');
   await loadScriptOnce('advanced-fixes.js');
   await loadScriptOnce('advanced-features.js');
@@ -53,6 +54,8 @@ async function loadAdvancedFeatures() {
   loadStyleOnce('business-assistant.css');
   await loadScriptOnce('business-assistant.js');
   window.MoorePrintBusinessAssistant?.init?.();
+  await loadScriptOnce('accounting-integrity.js');
+  window.MoorePrintAccountingIntegrity?.init?.();
 }
 
 async function loadSupabaseCloud() {
