@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mooreprint-v38';
+const CACHE_NAME = 'mooreprint-v39';
 const APP_SHELL = [
   './',
   './index.html',
@@ -42,6 +42,7 @@ const APP_SHELL = [
   './purchase-packages.js',
   './purchase-packages-v2.js?v=20260712-2',
   './unit-normalization.js',
+  './recurring-schedule-fix.js?v=20260713-1',
   './monthly-overhead.js',
   './branch-access.js',
   './catalog-cloud.js',
