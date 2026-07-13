@@ -92,6 +92,54 @@ Cada producto puede tener una receta de materiales. Al mover un pedido a **Produ
 
 Las compras aumentan el inventario y actualizan el costo promedio. Las mermas descuentan material y registran la pérdida económica.
 
+## Desarrollo y organización
+
+Antes de modificar el proyecto:
+
+1. Lee `AGENTS.md`.
+2. Consulta `docs/architecture.md`.
+3. Usa las skills adecuadas de `skills/`.
+4. Mantén los cambios funcionales separados de las reorganizaciones.
+
+La aplicación se sirve sin bundler. No muevas archivos de producción sin actualizar conjuntamente `index.html`, `sw.js`, pruebas, CI y documentación.
+
+### Instalación
+
+```bash
+npm ci
+```
+
+### Verificaciones
+
+```bash
+npm run test:skills
+npm run test:contracts
+npm test
+```
+
+Validación completa:
+
+```bash
+npm run validate
+```
+
+Las pruebas con Supabase real requieren un entorno autorizado:
+
+```bash
+npm run test:live
+```
+
+### Documentos de trabajo
+
+- Especificaciones: `docs/superpowers/specs/YYYY-MM-DD-tema-design.md`
+- Planes: `docs/superpowers/plans/YYYY-MM-DD-tema.md`
+- Guía de contribución: `CONTRIBUTING.md`
+- Plantilla de PR: `.github/pull_request_template.md`
+
+### Skills locales
+
+El catálogo completo está en `skills/README.md`. Incluye planeación, diseño, responsive, accesibilidad, pruebas, seguridad, rendimiento, SEO, despliegue, Supabase, PWA y puerta de calidad.
+
 ## Hacer privado el repositorio
 
 En GitHub abre **Settings → General → Danger Zone → Change repository visibility → Make private**.
@@ -100,6 +148,7 @@ Antes de cambiarlo, confirma que el servicio de publicación admita repositorios
 
 ## Archivos principales
 
+- `AGENTS.md`: instrucciones obligatorias para agentes y cambios en el repositorio.
 - `index.html`: estructura principal.
 - `styles.css`, `brand-theme.css`, `advanced-features.css`, `supplier-catalog.css` y `usability.css`: diseño e identidad visual.
 - `manifest.webmanifest`, `sw.js`, `icon-192.png` e `icon-512.png`: aplicación PWA.
@@ -116,4 +165,8 @@ Antes de cambiarlo, confirma que el servicio de publicación admita repositorios
 - `supabase/catalog.sql`: tablas y políticas del catálogo administrativo.
 - `supabase-config.js`: URL y clave pública del proyecto.
 - `supabase-cloud.js`: autenticación y sincronización de ventas.
+- `scripts/validate-skills.js`: validación de estructura y skills.
+- `skills/`: metodología web y reglas especializadas.
+- `docs/`: arquitectura, especificaciones y planes.
+- `tests/`: pruebas Playwright y contratos.
 - `app.js`: arranque de todos los módulos.
