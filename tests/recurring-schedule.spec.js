@@ -80,19 +80,19 @@ test('elimina una aparición anticipada sin pagos pero conserva una ya pagada', 
     ],
     expenses: [
       {
-        id: 'expense-unpaid', recurringId: 'rec-unpaid', recurringMonth: '2026-07',
-        date: '2026-07-01', dueDate: '2026-07-25', amount: 3000, payments: []
+        id: 'expense-unpaid', recurringId: 'rec-unpaid', recurringMonth: '2099-07',
+        date: '2099-07-01', dueDate: '2099-07-25', amount: 3000, payments: []
       },
       {
-        id: 'expense-paid', recurringId: 'rec-paid', recurringMonth: '2026-07',
-        date: '2026-07-01', dueDate: '2026-07-25', amount: 400,
-        payments: [{ id: 'pay-1', date: '2026-07-10', amount: 400 }]
+        id: 'expense-paid', recurringId: 'rec-paid', recurringMonth: '2099-07',
+        date: '2099-07-01', dueDate: '2099-07-25', amount: 400,
+        payments: [{ id: 'pay-1', date: '2099-07-10', amount: 400 }]
       }
     ]
   });
 
   const result = await page.evaluate(() => {
-    const cleanup = window.MoorePrintRecurringScheduleFix.cleanupPrematureExpenses('2026-07-12', { render: false });
+    const cleanup = window.MoorePrintRecurringScheduleFix.firstCleanup;
     return {
       removed: cleanup.removed.map(item => item.id),
       remaining: window.state.expenses.map(item => item.id),
@@ -103,8 +103,8 @@ test('elimina una aparición anticipada sin pagos pero conserva una ya pagada', 
 
   expect(result.removed).toEqual(['expense-unpaid']);
   expect(result.remaining).toEqual(['expense-paid']);
-  expect(result.paidMonth).toBe('2026-07');
-  expect(result.paymentDate).toBe('2026-07-10');
+  expect(result.paidMonth).toBe('2099-07');
+  expect(result.paymentDate).toBe('2099-07-10');
 });
 
 test('al liquidar un gasto recurrente marca el mes como pagado y evita regenerarlo', async ({ page }) => {
@@ -119,7 +119,7 @@ test('al liquidar un gasto recurrente marca el mes como pagado y evita regenerar
     }]
   });
 
-  const result = await page.evaluate(() => {
+  await page.evaluate(() => {
     document.body.insertAdjacentHTML('beforeend', `<form id="paymentForm">
       <input name="recordType" value="expense">
       <input name="recordId" value="expense-1">
@@ -127,6 +127,10 @@ test('al liquidar un gasto recurrente marca el mes como pagado y evita regenerar
       <input name="amount" value="250">
     </form>`);
     window.savePayment(document.querySelector('#paymentForm'));
+  });
+  await page.waitForFunction(() => Boolean(window.enqueued));
+
+  const result = await page.evaluate(() => {
     const recurring = window.state.recurringExpenses[0];
     const generated = window.MoorePrintRecurringScheduleFix.createOccurrence(recurring, '2026-07', '2026-07-20');
     return {
