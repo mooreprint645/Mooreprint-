@@ -9,10 +9,14 @@
 
 ## Preparación
 
+Mientras el repositorio no tenga `package-lock.json`:
+
 ```bash
-npm ci
+npm install --no-audit --no-fund
 npm test
 ```
+
+Cuando se agregue un lockfile válido, la instalación debe migrar a `npm ci`.
 
 La suite debe pasar antes de empezar. Si falla en `main`, documenta el fallo de línea base antes de continuar.
 
@@ -70,6 +74,7 @@ Cuando cambien rutas o recursos:
 ## Verificación
 
 ```bash
+npm run test:skills
 npm run test:contracts
 npm test
 ```
