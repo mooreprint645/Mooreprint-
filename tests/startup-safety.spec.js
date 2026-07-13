@@ -4,6 +4,15 @@ const fs = require('fs');
 const appCore = fs.readFileSync('app-core.js', 'utf8');
 const stateBridge = fs.readFileSync('state-bridge.js', 'utf8');
 
+async function openTestOrigin(page) {
+  await page.route('https://mooreprint.test/**', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: '<!doctype html><html><body></body></html>'
+  }));
+  await page.goto('https://mooreprint.test/');
+}
+
 test('la fecha operativa usa el calendario local del dispositivo', async ({ page }) => {
   const helper = appCore.match(/const todayISO = \(date = new Date\(\)\) => \{[\s\S]*?\n\};/)?.[0];
   expect(helper).toBeTruthy();
@@ -82,7 +91,7 @@ test('una página de 50 clientes o cotizaciones no borra el resto del estado loc
 });
 
 test('una cuenta nueva no hereda los datos locales de otra cuenta', async ({ page }) => {
-  await page.setContent('<!doctype html><html><body></body></html>');
+  await openTestOrigin(page);
   await page.evaluate(() => {
     window.state = { customers: [], quotes: [] };
     window.renderCustomers = () => {};
@@ -99,7 +108,7 @@ test('una cuenta nueva no hereda los datos locales de otra cuenta', async ({ pag
 });
 
 test('la primera cuenta todavía puede migrar el estado general existente', async ({ page }) => {
-  await page.setContent('<!doctype html><html><body></body></html>');
+  await openTestOrigin(page);
   await page.evaluate(() => {
     window.state = { customers: [], quotes: [] };
     window.renderCustomers = () => {};
