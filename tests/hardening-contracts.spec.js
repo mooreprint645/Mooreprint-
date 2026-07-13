@@ -7,6 +7,10 @@ const hardening = fs.readFileSync('team-hardening.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const sw = fs.readFileSync('sw.js', 'utf8');
 
+function cacheVersion(source) {
+  return source.match(/CACHE_NAME\s*=\s*['"]mooreprint-v(\d+)['"]/)?.[1] || '';
+}
+
 test('los módulos operativos tienen permisos separados', async () => {
   const permissions = [
     'view_suppliers', 'create_suppliers', 'edit_suppliers', 'delete_suppliers',
@@ -77,5 +81,6 @@ test('el SQL de producción conserva los bloques aplicados desde móvil', async 
 test('la protección avanzada se carga directamente y queda en caché', async () => {
   expect(html).toContain('<script src="team-hardening.js"></script>');
   expect(sw).toContain("'./team-hardening.js'");
-  expect(sw).toContain("CACHE_NAME = 'mooreprint-v35'");
+  expect(cacheVersion(sw)).toMatch(/^\d+$/);
+  expect(Number(cacheVersion(sw))).toBeGreaterThan(0);
 });

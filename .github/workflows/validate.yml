@@ -24,13 +24,21 @@ jobs:
           node-version: '22'
 
       - name: Revisar sintaxis JavaScript
+        shell: bash
         run: |
-          for file in *.js; do
-            echo "Revisando $file"
-            node --check "$file"
-          done
-          for file in tests/*.js; do
-            echo "Revisando $file"
+          set -euo pipefail
+          mapfile -d '' files < <(
+            find . -maxdepth 1 -type f -name '*.js' -print0
+            if [ -d tests ]; then find tests -type f -name '*.js' -print0; fi
+          )
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No se encontraron archivos JavaScript para revisar."
+            exit 0
+          fi
+
+          for file in "${files[@]}"; do
+            echo "Revisando ${file#./}"
             node --check "$file"
           done
 
@@ -38,26 +46,82 @@ jobs:
         run: |
           node <<'NODE'
           const fs = require('fs');
+          const path = require('path');
+
+          const normalizeLocalPath = value => String(value || '')
+            .split('#')[0]
+            .split('?')[0]
+            .replace(/^\.\//, '');
+
+          const isExternal = value => /^(?:https?:)?\/\//.test(value) || /^(?:data|blob):/.test(value);
+          const existingFile = value => {
+            const normalized = normalizeLocalPath(value);
+            return normalized && fs.existsSync(normalized) && fs.statSync(normalized).isFile();
+          };
+
+          const scriptReferences = source => {
+            const references = new Set();
+            for (const pattern of [
+              /(?:loadScriptOnce|loadScript)\(\s*['"]([^'"]+)['"]/g,
+              /\.src\s*=\s*['"]([^'"]+)['"]/g
+            ]) {
+              for (const match of source.matchAll(pattern)) {
+                if (!isExternal(match[1])) references.add(normalizeLocalPath(match[1]));
+              }
+            }
+            return [...references].filter(Boolean);
+          };
+
           const html = fs.readFileSync('index.html', 'utf8');
-          const declaredScripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map(match => match[1]);
-          const localScripts = declaredScripts.filter(file => !/^https?:\/\//.test(file));
-          const missingScripts = localScripts.filter(file => !fs.existsSync(file));
-          if (missingScripts.length) throw new Error(`Scripts faltantes: ${missingScripts.join(', ')}`);
+          const declaredScripts = [...html.matchAll(/<script\b[^>]*\bsrc=['"]([^'"]+)['"]/g)]
+            .map(match => match[1]);
+          const localScripts = declaredScripts
+            .filter(file => !isExternal(file))
+            .map(normalizeLocalPath);
+          const missingScripts = localScripts.filter(file => !existingFile(file));
+          if (missingScripts.length) throw new Error(`Scripts faltantes en index.html: ${missingScripts.join(', ')}`);
 
-          const dynamicLoaders = ['advanced-fixes.js', 'performance-fixes.js']
-            .filter(file => fs.existsSync(file))
-            .map(file => fs.readFileSync(file, 'utf8'))
-            .join('\n');
-          const dynamicallyLoaded = [...dynamicLoaders.matchAll(/(?:loadScriptOnce|loadScript)\(['"]([^'"]+)['"]/g)]
-            .map(match => match[1])
-            .filter(file => !file.startsWith('http'));
-          const missingDynamic = dynamicallyLoaded.filter(file => !fs.existsSync(file));
-          if (missingDynamic.length) throw new Error(`Scripts dinámicos faltantes: ${missingDynamic.join(', ')}`);
+          const reachableScripts = new Set();
+          const pending = [...localScripts];
+          while (pending.length) {
+            const file = pending.shift();
+            if (!file || reachableScripts.has(file)) continue;
+            if (!existingFile(file)) throw new Error(`Script dinámico faltante: ${file}`);
+            reachableScripts.add(file);
+            const source = fs.readFileSync(file, 'utf8');
+            for (const dependency of scriptReferences(source)) {
+              if (!reachableScripts.has(dependency)) pending.push(dependency);
+            }
+          }
 
-          const allScripts = [...new Set([...localScripts, ...dynamicallyLoaded])];
+          if (fs.existsSync('sw.js')) {
+            const serviceWorker = fs.readFileSync('sw.js', 'utf8');
+            const shellMatch = serviceWorker.match(/const\s+APP_SHELL\s*=\s*\[([\s\S]*?)\];/);
+            if (!shellMatch) throw new Error('No se pudo localizar APP_SHELL en sw.js.');
+            const shellFiles = [...shellMatch[1].matchAll(/['"]([^'"]+)['"]/g)]
+              .map(match => match[1])
+              .filter(file => !isExternal(file))
+              .map(normalizeLocalPath)
+              .filter(file => file && file !== '.');
+            const missingShellFiles = shellFiles.filter(file => !existingFile(file));
+            if (missingShellFiles.length) throw new Error(`Archivos faltantes en APP_SHELL: ${missingShellFiles.join(', ')}`);
+          }
+
+          const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const missingScriptTargets = [];
+          for (const [name, command] of Object.entries(packageJson.scripts || {})) {
+            for (const match of String(command).matchAll(/(?:^|\s)(tests\/[\w./-]+\.spec\.js)(?=\s|$)/g)) {
+              if (!existingFile(match[1])) missingScriptTargets.push(`${name}: ${match[1]}`);
+            }
+          }
+          if (missingScriptTargets.length) {
+            throw new Error(`Pruebas referenciadas en package.json que no existen: ${missingScriptTargets.join(', ')}`);
+          }
+
+          const allScripts = [...reachableScripts];
           const js = allScripts.map(file => fs.readFileSync(file, 'utf8')).join('\n');
-          const staticIds = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
-          const dynamicIds = new Set([...js.matchAll(/\bid=\\?"([^"$]+)\\?"/g)].map(match => match[1]));
+          const staticIds = new Set([...html.matchAll(/\bid=['"]([^'"]+)['"]/g)].map(match => match[1]));
+          const dynamicIds = new Set([...js.matchAll(/\bid=\\?['"]([^'"$]+)\\?['"]/g)].map(match => match[1]));
           const referenced = new Set([
             ...[...js.matchAll(/\$\('#([^']+)'\)/g)].map(match => match[1]),
             ...[...js.matchAll(/\$\("#([^"]+)"\)/g)].map(match => match[1])
@@ -65,7 +129,10 @@ jobs:
           const missingIds = [...referenced].filter(id => !staticIds.has(id) && !dynamicIds.has(id));
           if (missingIds.length) throw new Error(`Identificadores faltantes: ${missingIds.join(', ')}`);
 
-          console.log(`Validación correcta: ${allScripts.length} scripts locales, ${staticIds.size} identificadores estáticos y ${dynamicIds.size} dinámicos.`);
+          const tests = fs.existsSync('tests')
+            ? fs.readdirSync('tests').filter(file => file.endsWith('.js')).length
+            : 0;
+          console.log(`Validación correcta: ${allScripts.length} scripts alcanzables, ${tests} pruebas JavaScript, ${staticIds.size} identificadores estáticos y ${dynamicIds.size} dinámicos.`);
           NODE
 
       - name: Instalar Playwright y Supabase

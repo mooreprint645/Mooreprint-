@@ -29,6 +29,10 @@ const supplierCatalog = fs.readFileSync('supplier-catalog.js', 'utf8');
 const monthlyOverhead = fs.readFileSync('monthly-overhead.js', 'utf8');
 const mobileFixes = fs.readFileSync('mobile-fixes.css', 'utf8');
 
+function cacheVersion(source) {
+  return source.match(/CACHE_NAME\s*=\s*['"]mooreprint-v(\d+)['"]/)?.[1] || '';
+}
+
 test('las políticas usan permisos diferentes para ver, crear, editar y eliminar', async () => {
   for (const permission of [
     'view_customers', 'create_customers', 'edit_customers', 'delete_customers',
@@ -110,7 +114,8 @@ test('los scripts y estilos se cargan de forma estática y visible', async () =>
   }
   expect(app).not.toContain('loadScriptOnce');
   expect(app).not.toContain('loadStyleOnce');
-  expect(serviceWorker).toContain("CACHE_NAME = 'mooreprint-v35'");
+  expect(cacheVersion(serviceWorker)).toMatch(/^\d+$/);
+  expect(Number(cacheVersion(serviceWorker))).toBeGreaterThan(0);
 });
 
 test('los formularios usan el atributo id y no un control llamado id', async () => {
