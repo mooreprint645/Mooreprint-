@@ -143,6 +143,7 @@
   }
 
   installScopedStateIsolation();
+  Object.keys(collections).forEach(resetCollection);
   installCollectionSafety();
 
   let attempts = 0;
