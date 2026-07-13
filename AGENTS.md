@@ -124,11 +124,13 @@ No declares que un cambio está publicado mientras una caché antigua pueda segu
 
 ## Pruebas y comandos
 
-Instalación reproducible:
+Instalación actual, mientras el repositorio no tenga `package-lock.json`:
 
 ```bash
-npm ci
+npm install --no-audit --no-fund
 ```
+
+Cuando se agregue y mantenga un lockfile válido, se debe migrar CI y documentación a `npm ci`.
 
 Suite completa:
 
