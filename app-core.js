@@ -20,7 +20,12 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const num = value => Number.parseFloat(value) || 0;
 const money = value => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num(value));
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 const uid = prefix => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const clone = value => JSON.parse(JSON.stringify(value));
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
