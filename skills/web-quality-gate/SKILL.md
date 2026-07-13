@@ -1,6 +1,6 @@
 ---
 name: web-quality-gate
-description: Use before claiming that a website, PWA, interface feature, bug fix, refactor, Supabase change, responsive adjustment, or deployment is complete
+description: Use when about to claim that a website, PWA, interface feature, bug fix, refactor, Supabase change, responsive adjustment, or deployment is complete
 ---
 
 # Puerta de calidad web
@@ -11,11 +11,16 @@ No declarar éxito sin evidencia reciente. Ejecutar las verificaciones aplicable
 
 ## Verificación base
 
+Mientras el repositorio no tenga `package-lock.json`:
+
 ```bash
-npm ci
+npm install --no-audit --no-fund
+npm run test:skills
 npm run test:contracts
 npm test
 ```
+
+Cuando exista un lockfile válido y mantenido, sustituir la instalación por `npm ci`.
 
 Para cada JavaScript modificado:
 
