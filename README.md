@@ -105,9 +105,13 @@ La aplicación se sirve sin bundler. No muevas archivos de producción sin actua
 
 ### Instalación
 
+Mientras no exista `package-lock.json`:
+
 ```bash
-npm ci
+npm install --no-audit --no-fund
 ```
+
+Cuando el repositorio tenga un lockfile válido y mantenido, la instalación debe cambiar a `npm ci`.
 
 ### Verificaciones
 
