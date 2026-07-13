@@ -22,7 +22,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
 
       - name: Revisar sintaxis JavaScript
         shell: bash
@@ -140,7 +139,7 @@ jobs:
           NODE
 
       - name: Instalar dependencias
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: Instalar navegador de Playwright
         run: npx playwright install --with-deps chromium
