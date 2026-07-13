@@ -39,6 +39,16 @@
     }
   }
 
+  function loadRecurringScheduleFix() {
+    if (document.querySelector('script[data-recurring-schedule-fix]')) return;
+    const script = document.createElement('script');
+    script.src = './recurring-schedule-fix.js?v=20260713-1';
+    script.async = false;
+    script.dataset.recurringScheduleFix = 'true';
+    script.addEventListener('error', () => console.warn('No se pudo cargar la corrección de gastos recurrentes.'));
+    document.head.appendChild(script);
+  }
+
   function loadPurchasePackageSupport() {
     if (document.querySelector('script[data-purchase-packages]')) return;
     const script = document.createElement('script');
@@ -79,6 +89,7 @@
     window.showToast?.('MoorePrint quedó instalada en este dispositivo.');
   });
 
+  loadRecurringScheduleFix();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
   else init();
 })();
