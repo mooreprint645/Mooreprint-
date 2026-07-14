@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mooreprint-v41';
+const CACHE_NAME = 'mooreprint-v42';
 const APP_SHELL = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const APP_SHELL = [
   './branch-access.css',
   './usability.css',
   './learning-guide.css',
+  './beginner-mode.css',
   './mobile-fixes.css',
   './business-assistant.css',
   './files-db.js',
@@ -52,6 +53,9 @@ const APP_SHELL = [
   './mobile-fixes.js',
   './business-assistant.js',
   './learning-guide.js',
+  './beginner-sections.js',
+  './beginner-forms.js',
+  './beginner-mode.js',
   './app.js',
   './manifest.webmanifest',
   './icon.svg',
