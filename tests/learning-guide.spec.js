@@ -31,7 +31,7 @@ test('existen rutas separadas para administrar y operar', async () => {
 
 test('el progreso se separa por usuario del mismo navegador', async () => {
   expect(guide).toContain('window.MoorePrintBranches?.getProfile?.()');
-  expect(guide).toContain('profile?.user_id');
+  expect(guide).toContain('currentProfile?.user_id');
   expect(guide).toContain('mooreprint-learning-v1');
   expect(guide).toContain('storageKey');
 });
@@ -114,7 +114,7 @@ test('la ayuda de sección explica propósito, cambios y siguiente acción', asy
   await page.evaluate(() => window.MoorePrintLearningGuide.openSectionHelp('orders'));
   const modal = await page.evaluate(() => window.__learningModal);
   expect(modal.title).toContain('Pedidos');
-  expect(modal.body).toContain('Para qué sirve');
+  expect(modal.body).toContain('Registrar cada trabajo vendido');
   expect(modal.body).toContain('Qué cambia');
   expect(modal.body).toContain('Evita este error');
 });
