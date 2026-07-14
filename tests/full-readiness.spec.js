@@ -26,7 +26,8 @@ const stubs = {
   'catalog-cloud.js': '',
   'overhead-cloud.js': '',
   'usability.js': '',
-  'mobile-fixes.js': ''
+  'mobile-fixes.js': '',
+  'learning-guide.js': ''
 };
 
 function contentType(file) {
