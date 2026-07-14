@@ -11,6 +11,15 @@ function cacheVersion(source) {
   return Number(source.match(/CACHE_NAME\s*=\s*['"]mooreprint-v(\d+)['"]/)?.[1] || 0);
 }
 
+async function openLearningDocument(page, body) {
+  await page.route('http://learning.mooreprint.test/', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html; charset=utf-8',
+    body
+  }));
+  await page.goto('http://learning.mooreprint.test/');
+}
+
 test('la guía se carga de forma estática y queda disponible sin conexión', async () => {
   expect(html).toContain('<link rel="stylesheet" href="learning-guide.css">');
   expect(html).toContain('<script src="learning-guide.js"></script>');
@@ -56,11 +65,11 @@ test('la interfaz de aprendizaje es responsive y accesible', async () => {
   expect(styles).toContain('@media(max-width:760px)');
   expect(styles).toContain('@media (prefers-reduced-motion: reduce)');
   expect(guide).toContain('aria-label="Ruta de aprendizaje"');
-  expect(guide).toContain('aria-live="polite"');
+  expect(guide).toContain("setAttribute('aria-live', 'polite')");
 });
 
 test('un perfil nuevo recibe bienvenida y puede elegir su ruta', async ({ page }) => {
-  await page.setContent(`
+  await openLearningDocument(page, `
     <main class="main-content">
       <header class="topbar"><div class="topbar-actions"><button id="uxHelpButton">?</button></div></header>
       <section class="page-section active" id="dashboard"><div id="uxDashboardGuide"></div></section>
@@ -102,7 +111,7 @@ test('un perfil nuevo recibe bienvenida y puede elegir su ruta', async ({ page }
 });
 
 test('la ayuda de sección explica propósito, cambios y siguiente acción', async ({ page }) => {
-  await page.setContent('<main class="main-content"><section class="page-section active" id="orders"></section><section id="dashboard"></section><section id="help"></section></main><button class="nav-item active" data-section="orders">Pedidos</button>');
+  await openLearningDocument(page, '<main class="main-content"><section class="page-section active" id="orders"></section><section id="dashboard"></section><section id="help"></section></main><button class="nav-item active" data-section="orders">Pedidos</button>');
   await page.addScriptTag({ content: `
     window.state = { business: {}, customers: [], orders: [], products: [], materials: [], suppliers: [], purchases: [], expenses: [], recurringExpenses: [], cashTransactions: [] };
     window.navigate = () => {};
