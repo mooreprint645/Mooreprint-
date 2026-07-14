@@ -3,43 +3,21 @@
   let initialized = false;
   let rendering = false;
   let timer = null;
-  let observer = null;
 
   const html = value => typeof esc === 'function'
     ? esc(value)
     : String(value ?? '').replace(/[&<>"']/g, character => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[character]));
-
-  function data() {
-    return {
-      ...(window.MoorePrintBeginnerSections || {}),
-      ...(window.MoorePrintBeginnerForms || {})
-    };
-  }
-
-  function profile() {
-    return window.MoorePrintBranches?.getProfile?.() || null;
-  }
-
-  function identity() {
-    const current = profile();
-    return String(current?.user_id || current?.id || 'local');
-  }
-
-  function storageKey() {
-    return `${STORAGE_PREFIX}-${identity()}`;
-  }
-
-  function defaults() {
-    return { enabled: true, dismissed: [] };
-  }
+  const data = () => ({ ...(window.MoorePrintBeginnerSections || {}), ...(window.MoorePrintBeginnerForms || {}) });
+  const profile = () => window.MoorePrintBranches?.getProfile?.() || null;
+  const identity = () => String(profile()?.user_id || profile()?.id || 'local');
+  const storageKey = () => `${STORAGE_PREFIX}-${identity()}`;
+  const defaults = () => ({ enabled:true, dismissed:[] });
 
   function readPreferences() {
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey()) || 'null');
-      return { ...defaults(), ...(saved || {}), dismissed: Array.isArray(saved?.dismissed) ? saved.dismissed : [] };
-    } catch (error) {
-      return defaults();
-    }
+      return { ...defaults(), ...(saved || {}), dismissed:Array.isArray(saved?.dismissed) ? saved.dismissed : [] };
+    } catch (error) { return defaults(); }
   }
 
   function writePreferences(preferences) {
@@ -47,17 +25,9 @@
     catch (error) {}
   }
 
-  function activeSection() {
-    return document.querySelector('.page-section.active')?.id || document.querySelector('.nav-item.active')?.dataset.section || 'dashboard';
-  }
-
-  function areaName(section) {
-    return data().AREAS?.[section]?.[0] || section;
-  }
-
-  function areaIcon(section) {
-    return data().AREAS?.[section]?.[1] || '•';
-  }
+  const activeSection = () => document.querySelector('.page-section.active')?.id || document.querySelector('.nav-item.active')?.dataset.section || 'dashboard';
+  const areaName = section => data().AREAS?.[section]?.[0] || section;
+  const areaIcon = section => data().AREAS?.[section]?.[1] || '•';
 
   function levelLabel(level) {
     if (level === 'financiero') return 'Impacto financiero';
@@ -79,14 +49,12 @@
     if (!preferences.enabled || preferences.dismissed.includes(section)) return;
     const impact = data().SECTION_IMPACTS?.[section];
     const sectionNode = document.getElementById(section);
-    if (!impact || !sectionNode?.classList.contains('active')) return;
-    if (sectionNode.querySelector(`:scope > .beginner-impact-card[data-section="${section}"]`)) return;
+    if (!impact || !sectionNode?.classList.contains('active') || sectionNode.querySelector(`:scope > .beginner-impact-card[data-section="${section}"]`)) return;
 
     const card = document.createElement('article');
     card.className = 'beginner-impact-card';
     card.dataset.section = section;
     card.innerHTML = `<div class="beginner-impact-heading"><div><span class="beginner-eyebrow">Modo principiante · ${html(levelLabel(impact.level))}</span><h2>¿Qué pasa cuando usas ${html(areaName(section))}?</h2><p>${html(impact.summary)}</p></div><button class="button secondary" type="button" data-beginner-open="${section}">Explicación completa</button></div><div class="beginner-impact-grid"><section><span>Aquí puede cambiar</span><ul>${impact.changes.map(item => `<li>${html(item)}</li>`).join('')}</ul></section><section><span>Recibe información de</span><div class="beginner-related">${relatedButtons(impact.receives)}</div></section><section><span>También se refleja en</span><div class="beginner-related">${relatedButtons(impact.affects)}</div></section></div><div class="beginner-check-row"><div><strong>Antes de guardar</strong><p>${html(impact.check)}</p></div><div><strong>Ejemplo sencillo</strong><p>${html(impact.example)}</p></div></div><div class="beginner-card-actions"><button class="text-button" type="button" data-beginner-map>Ver mapa completo del negocio</button><button class="text-button" type="button" data-beginner-dismiss="${section}">Ocultar esta explicación</button></div>`;
-
     const coach = sectionNode.querySelector(':scope > .learning-section-coach');
     if (coach) coach.insertAdjacentElement('afterend', card);
     else sectionNode.prepend(card);
@@ -104,7 +72,7 @@
   }
 
   function flowLane(group) {
-    return `<article class="beginner-flow-lane"><div><h3>${html(group.title)}</h3><p>${html(group.note)}</p></div><div class="beginner-flow-steps">${group.sections.map((section, index) => `<button type="button" data-beginner-go="${section}"><span aria-hidden="true">${areaIcon(section)}</span><strong>${html(areaName(section))}</strong></button>${index < group.sections.length - 1 ? '<span class="beginner-flow-arrow" aria-hidden="true">→</span>' : ''}`).join('')}</div></article>`;
+    return `<article class="beginner-flow-lane"><div><h3>${html(group.title)}</h3><p>${html(group.note)}</p></div><div class="beginner-flow-steps">${group.sections.map((section,index) => `<button type="button" data-beginner-go="${section}"><span aria-hidden="true">${areaIcon(section)}</span><strong>${html(areaName(section))}</strong></button>${index < group.sections.length - 1 ? '<span class="beginner-flow-arrow" aria-hidden="true">→</span>' : ''}`).join('')}</div></article>`;
   }
 
   function ensureHelpMap() {
@@ -121,9 +89,10 @@
       if (learningCenter) learningCenter.insertAdjacentElement('afterend', map);
       else help.prepend(map);
     }
-    const toggle = map.querySelector('[data-beginner-toggle]');
     const preferences = readPreferences();
-    if (toggle) toggle.textContent = preferences.enabled ? 'Ocultar modo principiante' : 'Activar modo principiante';
+    const toggle = map.querySelector('[data-beginner-toggle]');
+    const nextLabel = preferences.enabled ? 'Ocultar modo principiante' : 'Activar modo principiante';
+    if (toggle && toggle.textContent !== nextLabel) toggle.textContent = nextLabel;
     map.classList.toggle('is-disabled', !preferences.enabled);
   }
 
@@ -134,7 +103,7 @@
     button.id = 'beginnerImpactButton';
     button.className = 'button secondary beginner-impact-button';
     button.type = 'button';
-    button.setAttribute('aria-label', 'Explicar qué modifica esta sección');
+    button.setAttribute('aria-label','Explicar qué modifica esta sección');
     button.innerHTML = '<span aria-hidden="true">↔</span><span class="beginner-impact-label">Impacto</span>';
     actions.appendChild(button);
   }
@@ -150,7 +119,7 @@
     const panel = document.createElement('aside');
     panel.className = 'beginner-form-impact';
     panel.dataset.form = form.id;
-    panel.innerHTML = formPanelMarkup(form.id, guide);
+    panel.innerHTML = formPanelMarkup(form.id,guide);
     form.prepend(panel);
   }
 
@@ -167,10 +136,10 @@
     const explanation = guide?.fields?.[field.name];
     const node = form?.querySelector('.beginner-field-explainer');
     if (!node || !explanation) return;
-    const [title, meaning, impact, warning] = explanation;
+    const [title,meaning,impact,warning] = explanation;
     node.innerHTML = `<span>${html(title)}</span><strong>${html(meaning)}</strong><p><b>Qué afecta:</b> ${html(impact)}</p><p><b>Revisa:</b> ${html(warning)}</p>`;
     const ids = String(field.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
-    if (!ids.includes(node.id)) field.setAttribute('aria-describedby', [...ids, node.id].join(' '));
+    if (!ids.includes(node.id)) field.setAttribute('aria-describedby',[...ids,node.id].join(' '));
   }
 
   function setEnabled(enabled) {
@@ -201,18 +170,13 @@
     if (!section || typeof window.navigate !== 'function') return;
     if (typeof closeModal === 'function') closeModal(true);
     window.navigate(section);
-    setTimeout(syncInterface, 80);
+    setTimeout(syncInterface,80);
   }
 
   function openBusinessMap() {
     if (typeof closeModal === 'function') closeModal(true);
     navigateTo('help');
-    setTimeout(() => document.querySelector('#beginnerBusinessMap')?.scrollIntoView({ behavior:'smooth', block:'start' }), 120);
-  }
-
-  function beginRendering() {
-    rendering = true;
-    setTimeout(() => { rendering = false; }, 0);
+    setTimeout(() => document.querySelector('#beginnerBusinessMap')?.scrollIntoView({ behavior:'smooth',block:'start' }),120);
   }
 
   function syncInterface() {
@@ -220,16 +184,17 @@
     clearTimeout(timer);
     timer = setTimeout(() => {
       if (rendering) return;
-      beginRendering();
+      rendering = true;
       ensureImpactButton();
       ensureHelpMap();
       enhanceForms();
       renderSectionCard(activeSection());
-    }, 40);
+      setTimeout(() => { rendering = false; },0);
+    },40);
   }
 
   function bindEvents() {
-    document.addEventListener('click', event => {
+    document.addEventListener('click',event => {
       const button = event.target.closest('button');
       if (!button) return;
       if (button.id === 'beginnerImpactButton') openSectionImpact(activeSection());
@@ -240,23 +205,17 @@
       else if (button.dataset.beginnerToggle !== undefined) setEnabled(!readPreferences().enabled);
       else if (button.dataset.beginnerShowAll !== undefined) showAllSections();
     });
-
-    document.addEventListener('focusin', event => {
+    document.addEventListener('focusin',event => {
       if (event.target.matches('input,select,textarea')) updateFieldExplanation(event.target);
     });
-  }
-
-  function observeInterface() {
-    const target = document.querySelector('.main-content') || document.body;
-    observer = new MutationObserver(syncInterface);
-    observer.observe(target, { childList:true, subtree:true, attributes:true, attributeFilter:['class','hidden'] });
   }
 
   function initialize() {
     if (initialized) return;
     initialized = true;
     bindEvents();
-    observeInterface();
+    const target = document.querySelector('.main-content') || document.body;
+    new MutationObserver(syncInterface).observe(target,{ childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden'] });
     syncInterface();
   }
 
@@ -269,7 +228,7 @@
         clearInterval(timerId);
         if (ready) initialize();
       }
-    }, 80);
+    },80);
   }
 
   window.MoorePrintBeginnerMode = {
@@ -280,6 +239,6 @@
     storageKey
   };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', waitForApplication);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',waitForApplication);
   else waitForApplication();
 })();
