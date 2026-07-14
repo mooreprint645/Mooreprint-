@@ -123,7 +123,11 @@ Los formularios llaman estas funciones directamente. No debe existir una segunda
 
 Los scripts están declarados directamente en `index.html`. No se crean etiquetas `<script>` en tiempo de ejecución. Esto permite ver dependencias, detectar archivos faltantes y usar la caché sin cargadores paralelos.
 
+## Compatibilidad heredada
+
 `select-innerhtml-stability.js` permanece aislado como protección temporal. Algunos módulos colaborativos todavía interceptan operaciones para permisos, bloqueos y transacciones, pero no deben contener cálculos alternativos.
+
+Las funciones nuevas deben evitar `baseFunction`, `wrapFunction`, sustituciones de globals y cargadores dinámicos. La compatibilidad temporal debe mantenerse separada, probada y con un criterio explícito de eliminación.
 
 ## Estructura objetivo gradual
 
@@ -195,7 +199,7 @@ Una función nueva debe:
 3. usar el motor contable en lugar de repetir fórmulas;
 4. registrarse directamente en `index.html` y `app.js`;
 5. incluir pruebas de contrato y resultados conocidos cuando haya números;
-6. evitar sustituciones de globals, wrappers y cargadores dinámicos;
+6. evitar `baseFunction`, `wrapFunction`, sustituciones de globals y cargadores dinámicos;
 7. documentar impacto en PWA, datos y permisos.
 
 ## Lista al mover un archivo
