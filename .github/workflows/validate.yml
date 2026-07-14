@@ -29,6 +29,7 @@ jobs:
           set -euo pipefail
           mapfile -d '' files < <(
             find . -maxdepth 1 -type f -name '*.js' -print0
+            if [ -d scripts ]; then find scripts -type f -name '*.js' -print0; fi
             if [ -d tests ]; then find tests -type f -name '*.js' -print0; fi
           )
 
@@ -42,11 +43,16 @@ jobs:
             node --check "$file"
           done
 
+      - name: Revisar organización y skills
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:skills 2>&1 | tee skill-validation.log
+
       - name: Revisar archivos e identificadores de la interfaz
         run: |
           node <<'NODE'
           const fs = require('fs');
-          const path = require('path');
 
           const normalizeLocalPath = value => String(value || '')
             .split('#')[0]
@@ -110,12 +116,12 @@ jobs:
           const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           const missingScriptTargets = [];
           for (const [name, command] of Object.entries(packageJson.scripts || {})) {
-            for (const match of String(command).matchAll(/(?:^|\s)(tests\/[\w./-]+\.spec\.js)(?=\s|$)/g)) {
+            for (const match of String(command).matchAll(/(?:^|\s)((?:tests|scripts)\/[\w./-]+\.js)(?=\s|$)/g)) {
               if (!existingFile(match[1])) missingScriptTargets.push(`${name}: ${match[1]}`);
             }
           }
           if (missingScriptTargets.length) {
-            throw new Error(`Pruebas referenciadas en package.json que no existen: ${missingScriptTargets.join(', ')}`);
+            throw new Error(`Archivos referenciados en package.json que no existen: ${missingScriptTargets.join(', ')}`);
           }
 
           const allScripts = [...reachableScripts];
@@ -129,16 +135,18 @@ jobs:
           const missingIds = [...referenced].filter(id => !staticIds.has(id) && !dynamicIds.has(id));
           if (missingIds.length) throw new Error(`Identificadores faltantes: ${missingIds.join(', ')}`);
 
+          const allScriptsCount = allScripts.length;
           const tests = fs.existsSync('tests')
             ? fs.readdirSync('tests').filter(file => file.endsWith('.js')).length
             : 0;
-          console.log(`Validación correcta: ${allScripts.length} scripts alcanzables, ${tests} pruebas JavaScript, ${staticIds.size} identificadores estáticos y ${dynamicIds.size} dinámicos.`);
+          console.log(`Validación correcta: ${allScriptsCount} scripts alcanzables, ${tests} pruebas JavaScript, ${staticIds.size} identificadores estáticos y ${dynamicIds.size} dinámicos.`);
           NODE
 
-      - name: Instalar Playwright y Supabase
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+      - name: Instalar dependencias
+        run: npm install --no-audit --no-fund
+
+      - name: Instalar navegador de Playwright
+        run: npx playwright install --with-deps chromium
 
       - name: Probar permisos, transacciones, cola y conexión
         run: npm test
@@ -147,6 +155,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-results
-          path: test-results
+          name: validation-results
+          path: |
+            test-results
+            skill-validation.log
           if-no-files-found: ignore
